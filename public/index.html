@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Office</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; font-family: "Segoe UI", "Hiragino Sans", sans-serif; }
+  #ui { position: fixed; top: 12px; left: 14px; z-index: 10; display: flex; gap: 10px; align-items: center; }
+  #title { font-size: 15px; font-weight: 600; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.35); letter-spacing: .5px; }
+  #status { width: 9px; height: 9px; border-radius: 50%; background: #e05555; }
+  #status.on { background: #5ad07a; }
+  #themeBtn { position: fixed; top: 10px; right: 14px; z-index: 10; border: none; border-radius: 16px;
+    padding: 6px 14px; font-size: 13px; cursor: pointer; background: rgba(255,255,255,.85); }
+  #log { position: fixed; bottom: 10px; left: 14px; z-index: 10; font-size: 12px; color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,.4); max-width: 45vw; opacity: .9; }
+  #charBtns { position: fixed; bottom: 12px; right: 14px; z-index: 10; display: flex; gap: 8px; }
+  .cbtn { border: none; border-radius: 16px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+    background: rgba(255,255,255,.85); }
+  .cbtn.active { background: #ffd166; font-weight: 600; }
+</style>
+<script type="importmap">
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+    "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2/lib/three-vrm.module.min.js"
+  } }
+</script>
+</head>
+<body>
+<div id="ui"><span id="status"></span><span id="title">AI Office</span></div>
+<button id="themeBtn">🌙 よる</button>
+<div id="log"></div>
+<div id="charBtns"></div>
+<script type="module" src="/main.js"></script>
+</body>
+</html>
