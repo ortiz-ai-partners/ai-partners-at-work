@@ -268,7 +268,7 @@ chars.forEach((ch, i) => {
 // ---------- VRMモーション（プロシージャルアニメーション） ----------
 function poseChar(ch, t, now, dt) {
   const P = {
-    leftUpperArm: { z: -1.25 }, rightUpperArm: { z: 1.25 },
+    leftUpperArm: { z: 1.25 }, rightUpperArm: { z: -1.25 },
     leftLowerArm: {}, rightLowerArm: {},
     leftUpperLeg: {}, rightUpperLeg: {}, leftLowerLeg: {}, rightLowerLeg: {},
     spine: {}, head: {},
@@ -278,25 +278,25 @@ function poseChar(ch, t, now, dt) {
     const w = t * 9 + ch.i * 2;
     P.leftUpperLeg.x = Math.sin(w) * 0.5;
     P.rightUpperLeg.x = -Math.sin(w) * 0.5;
-    P.leftLowerLeg.x = Math.max(0, Math.sin(w)) * 0.5;
-    P.rightLowerLeg.x = Math.max(0, -Math.sin(w)) * 0.5;
+    P.leftLowerLeg.x = -Math.max(0, Math.sin(w)) * 0.5;
+    P.rightLowerLeg.x = -Math.max(0, -Math.sin(w)) * 0.5;
     P.leftUpperArm.x = -Math.sin(w) * 0.3;
     P.rightUpperArm.x = Math.sin(w) * 0.3;
     P.spine.x = 0.07;
   } else if (st === 'working') {
-    P.leftUpperLeg.x = -1.35; P.rightUpperLeg.x = -1.35;
-    P.leftLowerLeg.x = 1.25; P.rightLowerLeg.x = 1.25;
+    P.leftUpperLeg.x = 1.35; P.rightUpperLeg.x = 1.35;
+    P.leftLowerLeg.x = -1.25; P.rightLowerLeg.x = -1.25;
     if (ch.pondering && now < ch.pondering) {
-      P.rightUpperArm.z = 0.7; P.rightUpperArm.x = -0.4; P.rightLowerArm.y = 2.4;
+      P.rightUpperArm.z = -0.55; P.rightUpperArm.x = -0.4; P.rightLowerArm.y = -2.4;
       P.head.z = 0.16; P.head.x = 0.08;
     } else {
-      P.leftUpperArm.z = -1.0; P.rightUpperArm.z = 1.0;
+      P.leftUpperArm.z = 1.0; P.rightUpperArm.z = -1.0;
       P.leftUpperArm.x = -0.3; P.rightUpperArm.x = -0.3;
-      P.leftLowerArm.y = -0.9; P.rightLowerArm.y = 0.9;
+      P.leftLowerArm.y = 0.9; P.rightLowerArm.y = -0.9;
       P.head.x = 0.1 + Math.sin(t * 6 + ch.i) * 0.03;
     }
   } else if (st === 'celebrate') {
-    P.leftUpperArm.z = 1.05; P.rightUpperArm.z = -1.05;
+    P.leftUpperArm.z = -1.05; P.rightUpperArm.z = 1.05;
     P.head.x = -0.15;
   } else {
     P.spine.x = Math.sin(t * 1.6 + ch.i) * 0.03;
