@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 
 // ---------- 基本セットアップ ----------
@@ -416,6 +417,19 @@ const lookTarget = new THREE.Vector3(0, 0.6, -0.6);
 const smoothLook = new THREE.Vector3(0, 0.6, -0.6);
 window.camera = camera;
 
+// マウスでカメラ操作（ドラッグ=回転 / ホイール=ズーム / 右ドラッグ=平行移動）
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 1.2;
+controls.maxDistance = 16;
+controls.maxPolarAngle = Math.PI / 2 - 0.03;
+let manualCam = false;
+controls.addEventListener('start', () => { manualCam = true; });
+for (const [bb] of followBtns) {
+  bb.addEventListener('click', () => { manualCam = false; });
+}
+
 // ---------- アニメーションループ ----------
 const clock = new THREE.Clock();
 function wanderTarget() {
@@ -517,15 +531,16 @@ function animate() {
 
   if (followIdx >= 0) {
     const p = chars[followIdx].group.position;
-    camTarget.set(p.x + 1.7, 1.5, p.z + 2.7);
     lookTarget.set(p.x, 1.1, p.z);
+    if (!manualCam) camTarget.set(p.x + 1.7, 1.5, p.z + 2.7);
   } else {
-    camTarget.set(Math.sin(t * 0.08) * 0.7, 5.4, 8.2);
     lookTarget.set(0, 0.6, -0.6);
+    if (!manualCam) camTarget.set(Math.sin(t * 0.08) * 0.7, 5.4, 8.2);
   }
-  camera.position.lerp(camTarget, Math.min(1, dt * 3));
+  if (!manualCam) camera.position.lerp(camTarget, Math.min(1, dt * 3));
   smoothLook.lerp(lookTarget, Math.min(1, dt * 3));
-  camera.lookAt(smoothLook);
+  controls.target.copy(smoothLook);
+  controls.update();
   renderer.render(scene, camera);
 }
 animate();
