@@ -48,6 +48,7 @@ LATEST_JPG = os.path.join(HERE, 'latest.jpg')
 LATEST_TXT = os.path.join(HERE, 'latest.txt')
 DIARY = os.path.join(HERE, 'diary.log')
 DIARY_JSONL = os.path.join(HERE, 'diary.jsonl')
+MEMORY = os.path.join(HERE, 'memory.md')       # 長期記憶（reflect.py が書く）
 PERSONA_NAME = os.environ.get('OSANPO_PERSONA', 'osanpo')
 PERSONA = os.path.join(HERE, 'personas', PERSONA_NAME + '.md')
 BRAIN = os.environ.get('OSANPO_BRAIN', 'claude')          # claude | openai
@@ -112,6 +113,14 @@ def who_is_there(path):
         return [], 0
 
 
+def load_memory():
+    try:
+        with open(MEMORY, encoding='utf-8') as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return ''
+
+
 def build_prompt(path, people):
     prompt = PROMPT.format(path=path)
     if people:
@@ -119,6 +128,9 @@ def build_prompt(path, people):
     ctx = recent_dialogue(CONTEXT_TURNS)
     if ctx:
         prompt = f'これまでの散歩の会話:\n{ctx}\n\n{prompt}'
+    mem = load_memory()
+    if mem:
+        prompt = f'あなたが覚えていること:\n{mem}\n\n{prompt}'
     return prompt
 
 
@@ -203,6 +215,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_error(403, 'bad token')
         if route == '/reply':
             return self.reply()
+        if route == '/reflect':
+            threading.Thread(target=self.reflect, daemon=True).start()
+            self.send_response(202)
+            self.end_headers()
+            return self.wfile.write(b'reflecting\n')
         if route != '/upload':
             return self.send_error(404)
         n = int(self.headers.get('Content-Length') or 0)
@@ -236,6 +253,11 @@ class Handler(BaseHTTPRequestHandler):
             diary_append(PERSONA_NAME, text, os.path.relpath(shot, HERE), people)
         print(f'[{ts}] {DISPLAY.get(PERSONA_NAME, PERSONA_NAME)}: {text}', flush=True)
 
+    def reflect(self):
+        """内省を別プロセスで走らせる（reflect.py）。"""
+        r = subprocess.run([sys.executable, os.path.join(HERE, 'reflect.py')], capture_output=True, text=True)
+        print((r.stdout or r.stderr).strip(), flush=True)
+
     def reply(self):
         """ゆうころの返事を日記に残す。本文はUTF-8のプレーンテキスト。"""
         n = int(self.headers.get('Content-Length') or 0)
@@ -261,6 +283,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_file(LATEST_JPG, 'image/jpeg')
         if route == '/diary.txt':
             return self.send_file(DIARY, 'text/plain; charset=utf-8')
+        if route == '/memory.md':
+            return self.send_file(MEMORY, 'text/plain; charset=utf-8')
         if route == '/':
             return self.send_file(os.path.join(HERE, 'index.html'), 'text/html; charset=utf-8')
         self.send_error(404)

@@ -20,6 +20,18 @@ Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ�
 写真を見て喋るのは `OSANPO_PERSONA` で選んだ人格（`personas/`）。ゆうころは閲覧ページの入力欄か `POST /reply` で返事ができ、
 次の写真を見るとき直近の会話（既定8発言）を踏まえて続ける。
 
+## 記憶（育つ仕組み）
+
+```
+diary.jsonl（生ログ、全部）──内省(reflect.py)──▶ memory.md（覚えたこと）──毎回prompt──▶ その子
+```
+
+- **短期**: 直近8発言（`OSANPO_CONTEXT_TURNS`）
+- **長期**: `memory.md`。見出しは「自分について / よく見るもの・場所 / ゆうころ・はるくんについて / 覚えたこと / 気になっていること」
+- **内省**: `python3 osanpo/reflect.py` を散歩の終わりか夜に1回。閲覧ページの「内省」ボタンでも同じ。上限 `OSANPO_MEMORY_MAX`（既定3000文字）
+- memory.md は手で直してよい。「これは違うよ」と書き換えるのも育て方のひとつ
+- 思考ジャンプ: 人格文で「いま見たものから覚えていることへ飛んでよい（そういえば〜）」と許可している。毎回飛ぶわけではない
+
 ## 人格と頭脳の切り替え
 
 | 変数 | 値 | 意味 |
@@ -41,6 +53,7 @@ Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ�
 | `server.py` | 受信サーバ。Python標準ライブラリのみ | 動作確認済み（curlで） |
 | `index.html` | ブラウザで最新の写真とコメントを見るページ（`http://PC:5072/`） | 動作確認済み |
 | `look.sh` | 手動で1枚 `claude -p` に見せるテスト用 | 動作確認済み |
+| `reflect.py` | 内省。日記を読み返して `memory.md`（長期記憶）を書き直す。`POST /reflect` でも起動 | 動作確認済み |
 | `personas/osanpo.md` | 写真を見て喋る人格: **おさんぽの子**（既定。名前は本人が後で決める） | 動作確認済み |
 | `personas/vert.md` | 同: ヴェルティ（参謀。散歩には出ない） | 動作確認済み |
 | `personas/ortiz.md` | 同: オルティス。**中身はゆうころが書く**（雛形のみ） | 未記入 |
@@ -85,6 +98,7 @@ python3 osanpo/faces/faces.py who photo.jpg   # 確認
 | `OSANPO_PROMPT` | 「何が見えるか一文で」 | `{path}` が画像パスに置き換わる |
 | `OSANPO_TOKEN` | 未設定 | 合言葉。外に公開するときは必須。`X-Osanpo-Token` ヘッダか `?token=` で照合 |
 | `OSANPO_CONTEXT_TURNS` | 8 | 写真を見るとき直近何発言を渡すか |
+| `OSANPO_MEMORY_MAX` | 3000 | memory.md の文字数上限 |
 | `OSANPO_FACE_THRESHOLD` | 0.363 | 顔照合の一致しきい値（SFace公式のcosine値）。誤認が多ければ上げる |
 
 ## 外から届くようにする（Cloudflare Tunnel）
