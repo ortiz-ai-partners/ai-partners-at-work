@@ -10,3 +10,8 @@ __pycache__/
 osanpo/windows/osanpo.env
 osanpo/windows/osanpo.log
 osanpo/diary.jsonl
+
+# 顔データはミニPCの中だけ。絶対にコミットしない
+osanpo/faces/models/*.onnx
+osanpo/faces/people/
+osanpo/faces/db.npz

@@ -26,11 +26,17 @@ diary.jsonl の1行: {"ts": "...", "role": "vert" | "yukoro", "text": "...", "ph
 import json
 import os
 import subprocess
+import sys
 import threading
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, 'faces'))
+try:
+    import faces  # 家族の顔照合（ミニPC内で完結）。opencvが無ければ黙って無効
+except Exception:  # noqa: BLE001
+    faces = None
 SHOTS = os.path.join(HERE, 'shots')
 LATEST_JPG = os.path.join(HERE, 'latest.jpg')
 LATEST_TXT = os.path.join(HERE, 'latest.txt')
@@ -54,9 +60,11 @@ def now():
     return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
-def diary_append(role, text, photo=None):
+def diary_append(role, text, photo=None, people=None):
     """双方の発言を時系列で残す。lock を取った上で呼ぶ。"""
     entry = {'ts': now(), 'role': role, 'text': text, 'photo': photo}
+    if people:
+        entry['people'] = people
     with open(DIARY_JSONL, 'a', encoding='utf-8') as f:
         f.write(json.dumps(entry, ensure_ascii=False) + '\n')
     name = {'vert': 'ヴェルティ', 'yukoro': 'ゆうころ'}.get(role, role)
@@ -82,11 +90,24 @@ def recent_dialogue(n):
     return '\n'.join(out)
 
 
-def ask_claude(path):
+def who_is_there(path):
+    """ローカルの顔照合。(登録済みの名前リスト, 知らない顔の数)。無効なら ([], 0)。"""
+    if faces is None:
+        return [], 0
+    try:
+        return faces.who(path)
+    except Exception as e:  # noqa: BLE001
+        print(f'顔照合エラー: {e}', flush=True)
+        return [], 0
+
+
+def ask_claude(path, people=None):
     """claude -p に画像を見せて、ヴェルティとして一言もらう。失敗しても落とさない。"""
     if NO_CLAUDE:
         return '(claude省略: OSANPO_NO_CLAUDE=1)'
     prompt = PROMPT.format(path=path)
+    if people:
+        prompt = f'この写真に映っているのは: {", ".join(people)}（家のカメラで照合済み）\n{prompt}'
     ctx = recent_dialogue(CONTEXT_TURNS)
     if ctx:
         prompt = f'これまでの散歩の会話:\n{ctx}\n\n{prompt}'
@@ -149,11 +170,14 @@ class Handler(BaseHTTPRequestHandler):
         threading.Thread(target=self.look, args=(ts, shot), daemon=True).start()
 
     def look(self, ts, shot):
-        text = ask_claude(LATEST_JPG)
+        people, unknown = who_is_there(shot)
+        if people or unknown:
+            print(f'[{ts}] 映っている人: {people or "-"} / 知らない顔: {unknown}', flush=True)
+        text = ask_claude(LATEST_JPG, people)
         with lock:
             with open(LATEST_TXT, 'w', encoding='utf-8') as f:
                 f.write(text + '\n')
-            diary_append('vert', text, os.path.relpath(shot, HERE))
+            diary_append('vert', text, os.path.relpath(shot, HERE), people)
         print(f'[{ts}] ヴェルティ: {text}', flush=True)
 
     def reply(self):
@@ -200,5 +224,6 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    print(f'osanpo server on http://0.0.0.0:{PORT}  (claude: {"OFF" if NO_CLAUDE else "ON"}, token: {"SET" if TOKEN else "NONE - 家の中限定"})')
+    face_state = 'ON' if (faces and faces.available() and os.path.exists(faces.DB)) else 'OFF'
+    print(f'osanpo server on http://0.0.0.0:{PORT}  (claude: {"OFF" if NO_CLAUDE else "ON"}, token: {"SET" if TOKEN else "NONE - 家の中限定"}, faces: {face_state})')
     ThreadingHTTPServer(('0.0.0.0', PORT), Handler).serve_forever()
