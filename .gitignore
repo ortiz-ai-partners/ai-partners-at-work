@@ -9,3 +9,4 @@ osanpo/diary.log
 __pycache__/
 osanpo/windows/osanpo.env
 osanpo/windows/osanpo.log
+osanpo/diary.jsonl

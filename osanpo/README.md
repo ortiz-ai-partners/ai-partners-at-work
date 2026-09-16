@@ -15,6 +15,15 @@ StackChan (Wi-Fi: スマホのテザリング)
 
 Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ。部品が一つ少ない。
 
+## 日記（双方の会話が残る）
+
+写真を見て喋るのはヴェルティ（`persona.md`）。ゆうころは閲覧ページの入力欄か `POST /reply` で返事ができ、
+ヴェルティは次の写真を見るとき直近の会話（既定8発言）を踏まえて続ける。
+
+- `diary.jsonl`: 機械用。1行1発言 `{"ts","role":"vert"|"yukoro","text","photo"}`。**将来ご自宅LLMを育てる教材。消さない**
+- `diary.log`: 人間用。`時刻 <TAB> 名前 <TAB> 発言`
+- `GET /diary.txt` で閲覧ページに直近12行を表示
+
 ## ファイル
 
 | ファイル | 役割 | 状態 |
@@ -22,6 +31,7 @@ Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ�
 | `server.py` | 受信サーバ。Python標準ライブラリのみ | 動作確認済み（curlで） |
 | `index.html` | ブラウザで最新の写真とコメントを見るページ（`http://PC:5072/`） | 動作確認済み |
 | `look.sh` | 手動で1枚 `claude -p` に見せるテスト用 | 動作確認済み |
+| `persona.md` | 写真を見て喋る人格（ヴェルティ）。`claude -p --append-system-prompt` で渡す | 動作確認済み |
 | `firmware/osanpo_stackchan/` | StackChan側スケッチ | **実機未検証の草案** |
 | `windows/` | ミニPC（Windows 11）で自動起動させる手順とスクリプト | 実機未検証 |
 | `docs/` | 設計メモ（ドメイン共存・Cloudflare Tunnel手順） | |
@@ -45,6 +55,7 @@ cat osanpo/latest.txt
 | `OSANPO_NO_CLAUDE` | 未設定 | `1` で claude を呼ばない |
 | `OSANPO_PROMPT` | 「何が見えるか一文で」 | `{path}` が画像パスに置き換わる |
 | `OSANPO_TOKEN` | 未設定 | 合言葉。外に公開するときは必須。`X-Osanpo-Token` ヘッダか `?token=` で照合 |
+| `OSANPO_CONTEXT_TURNS` | 8 | 写真を見るとき直近何発言を渡すか |
 
 ## 外から届くようにする（Cloudflare Tunnel）
 
