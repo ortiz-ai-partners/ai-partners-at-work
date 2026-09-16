@@ -12,8 +12,11 @@ StackChanは GET /latest.txt でコメントを取りに来て、喋ればいい
 使い方:
   python3 osanpo/server.py                # 通常
   OSANPO_NO_CLAUDE=1 python3 osanpo/server.py   # claudeを呼ばず保存だけ（配線テスト用）
+  OSANPO_TOKEN=合言葉 python3 osanpo/server.py   # 外に公開するときは必須。合言葉なしの荷物は拒否する
 テスト:
-  curl -X POST -H 'Content-Type: image/jpeg' --data-binary @photo.jpg http://localhost:5072/upload
+  curl -X POST -H 'Content-Type: image/jpeg' -H 'X-Osanpo-Token: 合言葉' \
+       --data-binary @photo.jpg http://localhost:5072/upload
+ブラウザ: http://localhost:5072/?token=合言葉
 """
 import os
 import subprocess
@@ -28,6 +31,7 @@ LATEST_TXT = os.path.join(HERE, 'latest.txt')
 DIARY = os.path.join(HERE, 'diary.log')
 PORT = int(os.environ.get('OSANPO_PORT', '5072'))
 NO_CLAUDE = os.environ.get('OSANPO_NO_CLAUDE') == '1'
+TOKEN = os.environ.get('OSANPO_TOKEN', '')   # 空なら家の中限定の無防備モード
 PROMPT = os.environ.get(
     'OSANPO_PROMPT',
     '{path} を見て、何が見えるか日本語で一文だけ言って。前置きも説明も不要。',
@@ -55,9 +59,22 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # 標準のアクセスログは静かに
         pass
 
+    def authorized(self):
+        """合言葉チェック。ヘッダ X-Osanpo-Token か ?token= のどちらかで受ける。"""
+        if not TOKEN:
+            return True
+        given = self.headers.get('X-Osanpo-Token', '')
+        if not given and '?' in self.path:
+            for kv in self.path.split('?', 1)[1].split('&'):
+                if kv.startswith('token='):
+                    given = kv[6:]
+        return given == TOKEN
+
     def do_POST(self):
-        if self.path != '/upload':
+        if self.path.split('?')[0] != '/upload':
             return self.send_error(404)
+        if not self.authorized():
+            return self.send_error(403, 'bad token')
         n = int(self.headers.get('Content-Length') or 0)
         if n <= 0 or n > MAX_BYTES:
             return self.send_error(413, 'bad size')
@@ -87,11 +104,14 @@ class Handler(BaseHTTPRequestHandler):
         print(f'[{ts}] {text}', flush=True)
 
     def do_GET(self):
-        if self.path == '/latest.txt':
+        if not self.authorized():
+            return self.send_error(403, 'bad token')
+        route = self.path.split('?')[0]
+        if route == '/latest.txt':
             return self.send_file(LATEST_TXT, 'text/plain; charset=utf-8')
-        if self.path == '/latest.jpg':
+        if route == '/latest.jpg':
             return self.send_file(LATEST_JPG, 'image/jpeg')
-        if self.path == '/':
+        if route == '/':
             return self.send_file(os.path.join(HERE, 'index.html'), 'text/html; charset=utf-8')
         self.send_error(404)
 
@@ -110,5 +130,5 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    print(f'osanpo server on http://0.0.0.0:{PORT}  (claude: {"OFF" if NO_CLAUDE else "ON"})')
+    print(f'osanpo server on http://0.0.0.0:{PORT}  (claude: {"OFF" if NO_CLAUDE else "ON"}, token: {"SET" if TOKEN else "NONE - 家の中限定"})')
     ThreadingHTTPServer(('0.0.0.0', PORT), Handler).serve_forever()

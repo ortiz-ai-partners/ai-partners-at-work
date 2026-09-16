@@ -3,11 +3,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>body{font-family:sans-serif;margin:16px;background:#111;color:#eee;text-align:center}
 img{max-width:100%;border-radius:8px}p{font-size:1.4em}</style></head>
-<body><h1>🚶 お散歩Claude</h1><img id="i" src="/latest.jpg"><p id="t">…</p>
+<body><h1>🚶 お散歩Claude</h1><img id="i" alt="まだ写真がない"><p id="t">…</p>
 <script>
+const q=new URLSearchParams(location.search).get('token');
+const tok=q?'&token='+encodeURIComponent(q):'';
 async function tick(){
-  try{const r=await fetch('/latest.txt',{cache:'no-store'});if(r.ok)document.getElementById('t').textContent=await r.text();}catch(e){}
-  document.getElementById('i').src='/latest.jpg?'+Date.now();
+  try{const r=await fetch('/latest.txt?_='+Date.now()+tok,{cache:'no-store'});if(r.ok)document.getElementById('t').textContent=await r.text();}catch(e){}
+  document.getElementById('i').src='/latest.jpg?_='+Date.now()+tok;
 }
 tick();setInterval(tick,10000);
 </script></body></html>
