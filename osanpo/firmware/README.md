@@ -1,42 +1,58 @@
-# StackChan のファームウェア: 出荷時アプリの保管と、うちのスケッチの書き込み
+# StackChan のファームウェア: stackchan-mcp に乗り換える
 
-## 大前提
+## 決定（2026-09-16）
 
-ESP32-S3 のフラッシュ（16MB）にはアプリ一式が一つ載る。うちのスケッチを書き込むと**出荷時アプリは消える**。
-だから書き込む前に、フラッシュを丸ごと吸い出してファイルに保管する。戻したくなったら丸ごと書き戻す（片道3〜4分）。
+出荷時アプリ（小智ベース。声と写真が中国のクラウドへ行く）は使わない。
+**stackchan-mcp**（MIT、CoreS3＋SCS0009＋GC0308 の公式キット向け）のファームに書き換え、ミニPCの常駐ゲートウェイ経由で
+Claude Code から `take_photo` / `say` / `set_avatar` / `move_head` / `listen` を呼ぶ。
+自作スケッチ（`legacy-own-sketch/`）は不採用。参考として残すだけ。
 
-## 0. 書き込む前に見ておくこと（出荷時アプリ）
+## 手順
 
-- 設定画面に「カスタムAPI」「サーバURL」「OpenAI互換」のような項目があるか → あれば出荷時アプリを残したまま家のミニPCへ向けられる可能性がある（要確認）
-- 選べるモデルの一覧、バージョン表示、Wi-Fi設定の入り方をスクショで残す
-- 出荷時アプリはおそらく「声で会話する」作り。うちの「5分ごとに写真を送る」とは動きが違うので、期待しすぎない
+### 0. 紐付け解除と保険
 
-## 1. 出荷時アプリを丸ごと吸い出す（Windows）
+1. iPhoneの StackChan アプリ → Settings → **Unbind & Reset**（公式が「別のファームに移る前に解け」と警告している）
+2. フラッシュ16MBを丸ごと吸い出して二か所に保管:
+   ```powershell
+   pip install esptool
+   esptool --chip esp32s3 --port COM5 --baud 921600 read_flash 0 0x1000000 stackchan_stock_2026-09-16.bin
+   ```
+   公式の戻し方は M5Burner で「StackChan」を検索して Burn。吸い出しはその二重の保険。
 
+### 1. stackchan-mcp のファームを書き込む
+
+Releases から `merged-binary.bin` を取り、
 ```powershell
-pip install esptool
-# USB-C でつなぎ、デバイスマネージャーで COM 番号を確認（例 COM5）
-esptool --chip esp32s3 --port COM5 --baud 921600 read_flash 0 0x1000000 stackchan_stock_2026-09-16.bin
+esptool --chip esp32s3 --port COM5 -b 460800 write_flash 0x0 merged-binary.bin
 ```
 
-- 0x1000000 = 16MB。ファイルは 16MB になる
-- 3〜4分かかる。終わったらファイルを **ミニPCと、もう一か所** に置く（消えたら戻せない）
-- 「Failed to connect」と出たら、USBを挿し直して再試行。それでもダメなら本体の状態を教えて（BOOTボタンの押し方が要る機種もある）
+### 2. 初回設定（本体側）
 
-## 2. 戻したくなったら
+起動するとWi-Fi設定モードになる。スマホで本体のアクセスポイントに繋ぎ `http://192.168.4.1` → **Advanced** タブ:
+- WebSocket Gateway URL: `ws://ミニPCのIP:8765/`
+- Gateway Token: ミニPC側の `STACKCHAN_TOKEN` と同じ
+- Fallback Gateway URL: 外出先用（後で。Cloudflare Tunnel 経由の `wss://...`）
+
+### 3. ミニPC側（ゲートウェイ常駐）
 
 ```powershell
-esptool --chip esp32s3 --port COM5 --baud 921600 write_flash 0 stackchan_stock_2026-09-16.bin
+pip install stackchan-mcp
+set STACKCHAN_TOKEN=合言葉
+set VISION_HOST=ミニPCのLAN IP      # 本体が写真をPOSTしに来る先
+stackchan-mcp serve --transport streamable-http
 ```
+`http://127.0.0.1:8767/mcp` に MCP の口が開く。写真は `~/.stackchan/captures/` にも残る。
 
-これで出荷時の状態に戻る（Wi-Fi設定などもその時点のものに戻る）。
+### 4. 声（任意、後回しでよい）
 
-## 3. うちのスケッチを書き込む
+- VOICEVOX: Windows版アプリを入れて起動しておく（`STACKCHAN_VOICEVOX_URL` 既定 http://127.0.0.1:50021）。家の中で完結
+- Irodori: 声のクローン。自前ホストの合成APIに `reference_audio`（ゆうころの録音）を渡す。重いのでフェーズ3
+- edge-tts: Microsoft のクラウド。文字が外に出るので使わない
 
-`osanpo_stackchan/osanpo_stackchan.ino` を Arduino IDE で開き、`SSID / PASS / SERVER / TOKEN` を書き換えて書き込む。
-ボードは M5Stack → M5CoreS3。ライブラリは M5CoreS3。**実機未検証の草案**なので、一発で動かない前提で。
+### 5. 耳（任意）
 
-## 4. 入れ替え運用
+`pip install stackchan-mcp[stt-faster-whisper]` で `listen` が家の中で動く。
 
-「今日は出荷時アプリで遊ぶ」「今日は散歩」を切り替えたいなら、1と2を繰り返す。片道3〜4分。
-うちのスケッチも吸い出しておけば同じ手順で戻せる。
+## 戻したくなったら
+
+M5Burner で公式ファームを Burn するか、0-2 で吸い出したファイルを `write_flash 0` で書き戻す。
