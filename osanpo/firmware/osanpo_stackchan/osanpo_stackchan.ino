@@ -5,18 +5,22 @@
 // 必要なもの (Arduino IDE / PlatformIO):
 //   - ボード: M5Stack (esp32) ボードマネージャ → "M5CoreS3"
 //   - ライブラリ: M5CoreS3 (M5Unified/M5GFXが一緒に入る)
-//   - 下の SSID / PASS / SERVER を自分の環境に書き換える
+//   - 下の SSID / PASS / SERVER / TOKEN を自分の環境に書き換える
 //
 // 注意: 公式StackChanの出荷時ファームは消える。戻したくなった時のためにM5Burnerの存在は覚えておくこと。
 
 #include <M5CoreS3.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include "esp_camera.h"   // frame2jpg()
 
 const char* SSID   = "YOUR_WIFI_SSID";
 const char* PASS   = "YOUR_WIFI_PASSWORD";
-const char* SERVER = "http://192.168.0.10:5072";   // 受信サーバ(PC)のアドレス
+// 家の中でのテスト: "http://192.168.0.10:5072"
+// Cloudflare Tunnel経由:  "https://osanpo.ortiz-ai.partners"
+const char* SERVER = "http://192.168.0.10:5072";
+const char* TOKEN  = "YOUR_SECRET_TOKEN";   // server.py の OSANPO_TOKEN と同じ文字列
 const uint32_t INTERVAL_MS = 5UL * 60UL * 1000UL;  // 5分ごと
 const int JPEG_QUALITY = 80;
 
@@ -25,6 +29,19 @@ void say(const char* msg) {
   CoreS3.Display.setCursor(0, 0);
   CoreS3.Display.println(msg);
   Serial.println(msg);
+}
+
+WiFiClientSecure tls;
+WiFiClient plain;
+
+// http:// と https:// を自動で使い分ける。
+// https は実験中は証明書検証なし(setInsecure)。動いたら tls.setCACert(...) に置き換えること。
+bool beginHttp(HTTPClient& http, const String& url) {
+  if (url.startsWith("https://")) {
+    tls.setInsecure();
+    return http.begin(tls, url);
+  }
+  return http.begin(plain, url);
 }
 
 void connectWifi() {
@@ -44,8 +61,9 @@ bool shootAndPost() {
   if (!ok) { say("jpeg NG"); return false; }
 
   HTTPClient http;
-  http.begin(String(SERVER) + "/upload");
+  beginHttp(http, String(SERVER) + "/upload");
   http.addHeader("Content-Type", "image/jpeg");
+  http.addHeader("X-Osanpo-Token", TOKEN);
   int code = http.POST(jpg, len);
   http.end();
   free(jpg);
@@ -55,7 +73,8 @@ bool shootAndPost() {
 
 void fetchAndShowComment() {
   HTTPClient http;
-  http.begin(String(SERVER) + "/latest.txt");
+  beginHttp(http, String(SERVER) + "/latest.txt");
+  http.addHeader("X-Osanpo-Token", TOKEN);
   int code = http.GET();
   if (code == 200) {
     String text = http.getString();

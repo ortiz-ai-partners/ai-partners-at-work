@@ -42,6 +42,12 @@ cat osanpo/latest.txt
 | `OSANPO_PORT` | 5072 | 受信ポート |
 | `OSANPO_NO_CLAUDE` | 未設定 | `1` で claude を呼ばない |
 | `OSANPO_PROMPT` | 「何が見えるか一文で」 | `{path}` が画像パスに置き換わる |
+| `OSANPO_TOKEN` | 未設定 | 合言葉。外に公開するときは必須。`X-Osanpo-Token` ヘッダか `?token=` で照合 |
+
+## 外から届くようにする（Cloudflare Tunnel）
+
+ドメイン `ortiz-ai.partners` をCloudflareに乗せ、ミニPCから `cloudflared` でトンネルを引く。
+サイト・メール（Xserver）と共存させる手順と注意は [docs/domain-and-relay.md](docs/domain-and-relay.md)。
 
 ## 手順（時系列）
 
@@ -50,10 +56,10 @@ cat osanpo/latest.txt
 3. **フェーズ1 書き込み環境**: Arduino IDEにM5Stackボード定義とM5CoreS3ライブラリを入れる。`SSID/PASS/SERVER` を書き換えて書き込む
 4. **フェーズ1 室内テスト**: 家のWi-FiでPCと同じネットワークに置き、`shots/` に写真が溜まり `latest.txt` が更新されるのを確認
 5. **フェーズ1 テザリングテスト**: スマホのテザリングにPCとStackChanを両方つなぎ、同じことが起きるか確認
-6. **初散歩（案A: ノートPC持ち歩き）**: 顔を外向きにして固定。5分ごとに一言出れば成功
+6. **初散歩（ミニPC＋モバイルバッテリー持ち歩き）**: 顔を外向きにして固定。5分ごとに一言出れば成功
 7. **フェーズ2 3Dオフィス連携**: `latest.txt` の更新を `server.js` 側に流し、散歩中キャラの吹き出しに出す
 8. **フェーズ3 口**: `latest.txt` をTTSで喋らせる。AIｽﾀｯｸﾁｬﾝ2の発話部分を流用
-9. **案B 自宅PC常駐**: Tailscale等で自宅PCへ届く経路を作り、ノートPCなしで散歩できるようにする
+9. **自宅ミニPC常駐**: Cloudflare Tunnelで `osanpo.ortiz-ai.partners` → ミニPCの5072へ。荷物ゼロで散歩できるようにする（手順は docs/）
 10. **電池**: 5分間隔での実測稼働時間を測り、必要ならlight sleepを入れる
 
 ## まだわかっていないこと
