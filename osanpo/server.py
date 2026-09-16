@@ -32,6 +32,7 @@ diary.jsonl の1行: {"ts": "...", "role": "osanpo" | "vert" | "ortiz" | "yukoro
 """
 import base64
 import json
+import re
 import os
 import subprocess
 import sys
@@ -60,7 +61,7 @@ PERSONA = os.path.join(HERE, 'personas', PERSONA_NAME + '.md')
 BRAIN = os.environ.get('OSANPO_BRAIN', 'claude')          # claude | openai
 OPENAI_MODEL = os.environ.get('OSANPO_OPENAI_MODEL', 'gpt-4o-mini')  # 手元で最新の画像対応モデル名に
 OPENAI_KEY = os.environ.get('OPENAI_API_KEY', '')
-DISPLAY = {'osanpo': 'おさんぽの子', 'vert': 'ヴェルティ', 'ortiz': 'オルティス', 'yukoro': 'ゆうころ'}  # 名前が決まったら osanpo の表示名を変える
+DISPLAY = {'osanpo': 'おさんぽの子', 'vert': 'ヴェルティ', 'ortiz': 'オルティス', 'yukoro': 'ゆうころ', 'system': '（記録）'}  # 名前が決まったら osanpo の表示名を変える
 PORT = int(os.environ.get('OSANPO_PORT', '5072'))
 NO_CLAUDE = os.environ.get('OSANPO_NO_CLAUDE') == '1'
 TOKEN = os.environ.get('OSANPO_TOKEN', '')   # 空なら家の中限定の無防備モード
@@ -109,14 +110,32 @@ def recent_dialogue(n):
 
 
 def who_is_there(path):
-    """ローカルの顔照合。(登録済みの名前リスト, 知らない顔の数)。無効なら ([], 0)。"""
+    """ローカルの顔照合。(登録済みの名前, 知らない顔の数, 聞くべき候補ID)。無効なら ([], 0, [])。"""
     if faces is None:
-        return [], 0
+        return [], 0, []
     try:
-        return faces.who(path)
+        return faces.observe(path)
     except Exception as e:  # noqa: BLE001
         print(f'顔照合エラー: {e}', flush=True)
-        return [], 0
+        return [], 0, []
+
+
+ASK_RE = re.compile(r'^\s*#(\d+)\s*[=:：は]?\s*(.+?)\s*$')
+DISMISS_WORDS = {'だめ', 'ダメ', '覚えないで', 'おぼえないで', 'いや', 'no', 'x', '×', '消して'}
+
+
+def handle_face_answer(text):
+    """「#3 はけんちゃんだよ」→ 登録、「#3 だめ」→ 消す。該当しなければ None。"""
+    if faces is None:
+        return None
+    m = ASK_RE.match(text)
+    if not m:
+        return None
+    cid, name = m.group(1), m.group(2)
+    name = re.sub(r'(だよ|です|だね|だ|ね|よ|。|！|!)+$', '', name).strip()
+    if name in DISMISS_WORDS or not name:
+        return f'#{cid} は覚えないことにした' if faces.dismiss_candidate(cid) else f'#{cid} は候補にない'
+    return f'#{cid} を「{name}」として覚えた' if faces.enroll_candidate(cid, name) else f'#{cid} は候補にない'
 
 
 def load_walk():
@@ -194,10 +213,13 @@ def load_memory():
         return ''
 
 
-def build_prompt(path, people, resumed):
+def build_prompt(path, people, resumed, asks=None):
     prompt = PROMPT.format(path=path)
     if people:
         prompt = f'この写真に映っているのは: {", ".join(people)}（家のカメラで照合済み）\n{prompt}'
+    if asks:
+        tags = ' '.join(f'#{a}' for a in asks)
+        prompt += f'\n（知らない人が何度も映っている。文の最後に、こっそり「（この人だれ？覚えてもいい？ {tags}）」と付けて）'
     if resumed:
         rep = unseen_replies()
         if rep:
@@ -230,17 +252,17 @@ def _run_claude(prompt, session_id):
     return (j.get('result') or '(無言)').strip().replace('\n', ' '), j.get('session_id')
 
 
-def ask_claude(path, people=None):
+def ask_claude(path, people=None, asks=None):
     """散歩1回＝1つの会話。続きなら --resume、途切れていれば新しく始める。"""
     sid = current_walk_session()
     try:
         try:
-            text, new_sid = _run_claude(build_prompt(path, people, resumed=bool(sid)), sid)
+            text, new_sid = _run_claude(build_prompt(path, people, resumed=bool(sid), asks=asks), sid)
         except (RuntimeError, ValueError):
             if not sid:
                 raise
             print('会話の再開に失敗。新しい散歩として始める', flush=True)
-            text, new_sid = _run_claude(build_prompt(path, people, resumed=False), None)
+            text, new_sid = _run_claude(build_prompt(path, people, resumed=False, asks=asks), None)
         if new_sid:
             save_walk(new_sid)
         return text
@@ -283,10 +305,10 @@ def ask_openai(path, people=None):
         return f'(openai 失敗: {e})'
 
 
-def ask_brain(path, people=None):
+def ask_brain(path, people=None, asks=None):
     if NO_CLAUDE:
         return f'(頭脳省略: OSANPO_NO_CLAUDE=1 / persona={PERSONA_NAME})'
-    return ask_openai(path, people) if BRAIN == 'openai' else ask_claude(path, people)
+    return ask_openai(path, people) if BRAIN == 'openai' else ask_claude(path, people, asks)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -344,12 +366,16 @@ class Handler(BaseHTTPRequestHandler):
         threading.Thread(target=self.look, args=(ts, shot), daemon=True).start()
 
     def look(self, ts, shot):
-        people, unknown = who_is_there(shot)
+        people, unknown, asks = who_is_there(shot)
         if people or unknown:
-            print(f'[{ts}] 映っている人: {people or "-"} / 知らない顔: {unknown}', flush=True)
+            print(f'[{ts}] 映っている人: {people or "-"} / 知らない顔: {unknown}' + (f' / 聞く: {asks}' if asks else ''), flush=True)
         if current_walk_session() is None and load_walk().get('session_id'):
             end_walk()  # 間が空いた → 前の散歩を締めて内省
-        text = ask_brain(shot, people)
+        text = ask_brain(shot, people, asks)
+        for a in asks:  # 子が付け忘れても、必ず括弧書きで聞く
+            if f'#{a}' not in text:
+                text += f'（この人だれ？覚えてもいい？ #{a}）'
+                break
         with lock:
             with open(LATEST_TXT, 'w', encoding='utf-8') as f:
                 f.write(text + '\n')
@@ -366,10 +392,15 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_error(400, 'empty')
         with lock:
             diary_append('yukoro', text)
+        print(f'[{now()}] ゆうころ: {text}', flush=True)
+        note = handle_face_answer(text)
+        if note:
+            with lock:
+                diary_append('system', note)
+            print(f'[{now()}] {note}', flush=True)
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b'ok\n')
-        print(f'[{now()}] ゆうころ: {text}', flush=True)
 
     def do_GET(self):
         if not self.authorized():
@@ -383,6 +414,16 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_file(DIARY, 'text/plain; charset=utf-8')
         if route == '/memory.md':
             return self.send_file(MEMORY, 'text/plain; charset=utf-8')
+        if route == '/asks.json':
+            data = json.dumps(faces.pending() if faces else []).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(data)))
+            self.end_headers()
+            return self.wfile.write(data)
+        m = re.match(r'^/candidates/(\d+)\.jpg$', route)
+        if m and faces:
+            return self.send_file(os.path.join(faces.CAND_DIR, m.group(1) + '.jpg'), 'image/jpeg')
         if route == '/':
             return self.send_file(os.path.join(HERE, 'index.html'), 'text/html; charset=utf-8')
         self.send_error(404)
