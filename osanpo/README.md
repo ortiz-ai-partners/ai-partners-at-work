@@ -20,7 +20,7 @@ Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ�
 | ファイル | 役割 | 状態 |
 |---|---|---|
 | `server.py` | 受信サーバ。Python標準ライブラリのみ | 動作確認済み（curlで） |
-| `index.html` | ブラウザで最新の写真とコメントを見るページ（`http://PC:3940/`） | 動作確認済み |
+| `index.html` | ブラウザで最新の写真とコメントを見るページ（`http://PC:5072/`） | 動作確認済み |
 | `look.sh` | 手動で1枚 `claude -p` に見せるテスト用 | 動作確認済み |
 | `firmware/osanpo_stackchan/` | StackChan側スケッチ | **実機未検証の草案** |
 
@@ -29,7 +29,7 @@ Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ�
 ```bash
 python3 osanpo/server.py
 # 別ターミナルで、スマホで撮った写真を投げる
-curl -X POST -H 'Content-Type: image/jpeg' --data-binary @photo.jpg http://localhost:3940/upload
+curl -X POST -H 'Content-Type: image/jpeg' --data-binary @photo.jpg http://localhost:5072/upload
 cat osanpo/latest.txt
 ```
 
@@ -39,7 +39,7 @@ cat osanpo/latest.txt
 
 | 変数 | 既定 | 意味 |
 |---|---|---|
-| `OSANPO_PORT` | 3940 | 受信ポート（3Dオフィスの3939の隣） |
+| `OSANPO_PORT` | 5072 | 受信ポート |
 | `OSANPO_NO_CLAUDE` | 未設定 | `1` で claude を呼ばない |
 | `OSANPO_PROMPT` | 「何が見えるか一文で」 | `{path}` が画像パスに置き換わる |
 

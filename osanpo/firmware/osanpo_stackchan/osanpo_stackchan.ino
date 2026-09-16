@@ -16,7 +16,7 @@
 
 const char* SSID   = "YOUR_WIFI_SSID";
 const char* PASS   = "YOUR_WIFI_PASSWORD";
-const char* SERVER = "http://192.168.0.10:3940";   // 受信サーバ(PC)のアドレス
+const char* SERVER = "http://192.168.0.10:5072";   // 受信サーバ(PC)のアドレス
 const uint32_t INTERVAL_MS = 5UL * 60UL * 1000UL;  // 5分ごと
 const int JPEG_QUALITY = 80;
 
