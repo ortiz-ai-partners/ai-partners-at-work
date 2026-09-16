@@ -22,21 +22,31 @@ StackChan（テザリング）──HTTPS──▶ osanpo.ortiz-ai.partners（Cl
 
 ### 1. 準備（DNSを切り替える前に。ここが一番大事）
 
-2026-09-16 時点で外から読めた公開レコード（管理画面の一覧が正。ここは突き合わせ用の控え）:
+2026-09-16 Xserverサーバーパネル「DNSレコード設定」の全19件（スクショで確認済み）。TTLはすべて3600。
 
-| 種別 | 名前 | 値 |
-|---|---|---|
-| NS | @ | ns1〜ns5.xserver.jp（現在の名簿の持ち主 = Xserver） |
-| A | @ | 85.131.209.11 |
-| A | www | 85.131.209.11 |
-| A | mail | 85.131.209.11 |
-| MX | @ | 0 ortiz-ai.partners. |
-| TXT | @ | `v=spf1 +a:sv16470.xserver.jp +a:ortiz-ai.partners +mx include:spf.sender.xserver.jp ~all` |
-| TXT | @ | `openai-domain-verification=dv-...`（OpenAIのドメイン認証。写す） |
-| TXT | default._domainkey | `v=DKIM1; k=rsa; p=...`（長い。Cloudflareは255文字超も扱える） |
-| TXT | _dmarc | `v=DMARC1; p=none;` |
+**Cloudflareに写す 13件:**
 
-Cloudflareに写したあと、この表と管理画面の一覧の両方に対して過不足を確認する。
+| # | 名前 | 種別 | 値 | メモ |
+|---|---|---|---|---|
+| 1 | `@` | A | 85.131.209.11 | サイト本体 |
+| 2 | `www` | A | 85.131.209.11 | |
+| 3 | `*` | A | 85.131.209.11 | **ワイルドカード。忘れると ai-club / records サブドメインが消える** |
+| 4 | `@` | TXT | `v=spf1 +a:sv16470.xserver.jp +a:ortiz-ai.partners +mx include:spf.sender.xserver.jp ~all` | SPF |
+| 5 | `@` | MX | `ortiz-ai.partners`（優先度0） | |
+| 6 | `@` | TXT | `openai-domain-verification=dv-Fnpni0yKrKxU2UdzaQgURHJr` | OpenAI認証 |
+| 7 | `_dmarc` | TXT | `v=DMARC1; p=none;` | |
+| 8 | `default._domainkey` | TXT | `v=DKIM1; k=rsa; p=...`（管理画面からコピー） | ルートのDKIM |
+| 9 | `_adsp._domainkey` | TXT | `dkim=unknown` | |
+| 10 | `default._domainkey.ai-club` | TXT | `v=DKIM1; k=rsa; p=...`（管理画面からコピー） | ai-club のDKIM |
+| 11 | `_adsp._domainkey.ai-club` | TXT | `dkim=unknown` | |
+| 12 | `default._domainkey.records` | TXT | `v=DKIM1; k=rsa; p=...`（管理画面からコピー） | records のDKIM |
+| 13 | `_adsp._domainkey.records` | TXT | `dkim=unknown` | |
+
+**写さない 5件:** `NS ns1〜ns5.xserver.jp`。Cloudflareが自分のNSを立てるので入れない。
+
+**Cloudflareで新しく足す 1件:** `osanpo` → トンネル（cloudflaredが自動でCNAMEを作る）。個別指定はワイルドカードより優先されるので、`osanpo` だけトンネルへ、他のサブドメインは従来通りXserverへ行く。
+
+DKIMの `p=` は長いので、Cloudflareの入力欄に管理画面のコピーボタンからそのまま貼る（Cloudflareは255文字超のTXTを自動分割する）。
 
 1. Xserverサーバーパネル →「DNSレコード設定」→ `ortiz-ai.partners` の全レコードを控える（スクショ＋テキスト）
    - A（`@`, `www`, その他サブドメイン）: サイトのIP
@@ -74,6 +84,15 @@ Cloudflareに写したあと、この表と管理画面の一覧の両方に対�
 ### 6. 将来の拡張（同じトンネルに1行足すだけ）
 
 - `office.ortiz-ai.partners` → `http://localhost:3939` で3Dオフィスを外から見る（Cloudflare Accessで鍵をかける）
+
+## 移行後の約束（継続コスト）
+
+名簿がCloudflareに移ると、Xserver側での変更は自動では名簿に反映されない。次の時は手でCloudflareに写す:
+- Xserverで新しいサブドメインを作った時のDKIMレコード（Aはワイルドカードで届く）
+- DKIM鍵の更新、Xserverの新機能が要求するTXT/CNAME
+- サーバー移転などでXserverのIPが変わった時（A 3件）
+
+サーバーパネル上の他ドメイン（ortiz-ai.com, ortiz-ai.life など計6件）は今回一切触らない。
 
 ## まだ確認していないこと
 
