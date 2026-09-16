@@ -11,6 +11,7 @@
 | 外で動かす時の電源 | モバイルバッテリー。PD **30W以上**推奨（19Wぎりぎりだと落ちる） |
 | 通信 | iPhoneのテザリング |
 | Xiao ESP32S3 Sense | **買わない**（StackChanで全部足りる） |
+| 今すぐの止血 | StackChanの電源を切る（出荷時アプリは声と写真をクラウドへ送る）。Unbind & Reset は早めに |
 
 ## ソフト・設定
 
@@ -45,9 +46,13 @@
 
 | 何 | 決定 |
 |---|---|
-| 出荷時アプリ（Qwen等を選べる公式アプリ） | **書き込むと消える**。書き込む前に esptool でフラッシュ16MBを丸ごと吸い出して保管（`firmware/README.md`） |
-| 入れ替え | 吸い出したファイルを書き戻せば出荷時に戻る。片道3〜4分 |
-| 書き込む前に | 出荷時アプリの設定に「カスタムAPI / サーバURL」があるか確認（あれば消さずに済む道がある） |
+| 出荷時アプリの正体 | 小智（Xiaozhi）ベース。声・写真・会話が **小智のクラウド（中国）** に送られる。頭脳は Qwen / DeepSeek / DouBao |
+| 出荷時アプリを使うか | **使わない**（画像を中国に送るのが不安、が決め手。「何が見える？」の試用もしない） |
+| 本命 | **stackchan-mcp**（第三者のMIT製ファーム＋Pythonゲートウェイ）。Claude Code から take_photo / say / listen / move_head / set_avatar を道具として呼ぶ |
+| うちの自作スケッチ | **不採用**（stackchan-mcp が同じものを持っている） |
+| 書き込む前に | ① iPhoneアプリで Unbind & Reset ② esptool でフラッシュ16MB吸い出し（`firmware/README.md`）③ 公式の戻し方は M5Burner の StackChan |
+| データの行き先 | 写真とその子の言葉 → Claude（Anthropic、米国）のみ。声の文字起こし(faster-whisper)・合成(VOICEVOX)・顔照合・日記・記憶は **ミニPCの中**。ElevenLabs で声クローンを使う時だけ文字が米国へ |
+| 確認すること | Claude 側で写真が学習に使われるかの設定項目（契約と設定に従う。未確認） |
 
 ## ドメイン・外から届く経路
 
