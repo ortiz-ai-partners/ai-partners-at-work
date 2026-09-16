@@ -3,17 +3,18 @@
 StackChan（M5Stack公式キット、中身はCoreS3相当）を連れて散歩し、見た景色をClaude Codeに一言で言わせる実験。
 このディレクトリは「サーバ側」と「StackChan側」の両方を置く場所。
 
-## 構成
+## 構成（2026-09-16 改訂: stackchan-mcp 採用）
 
 ```
-StackChan (Wi-Fi: スマホのテザリング)
-  └ 5分ごとに撮影 → POST /upload ──▶ osanpo/server.py (PC)
-                                        ├ shots/ に保存、latest.jpg 更新
-                                        ├ claude -p で「何が見える？」→ latest.txt
-                                        └ GET /latest.txt ◀── StackChan が取りに来て表示/発話
+StackChan（stackchan-mcp ファーム）⇄ ws 8765 / http 8766 ⇄ stackchan-mcp 常駐ゲートウェイ（ミニPC）
+                                                                    ⇅ http://127.0.0.1:8767/mcp
+   walk.py: 5分ごとに take_photo ──▶ server.py /upload ──▶ 顔照合 → 人格＋記憶 → claude -p（散歩1回=1会話）
+                                                                                  └ mcp__stackchan__say で喋る・表情
 ```
 
-Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ。部品が一つ少ない。
+- 写真・声・顔・日記・記憶はミニPCの中。外に出るのは「写真とその子の言葉」を Claude に見せる分だけ
+- 出荷時アプリ（小智）は使わない。理由と手順は `firmware/README.md`
+- Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ。部品が一つ少ない
 
 ## 日記（双方の会話が残る）
 
@@ -51,15 +52,17 @@ diary.jsonl（生ログ、全部）──内省(reflect.py)──▶ memory.md�
 
 | ファイル | 役割 | 状態 |
 |---|---|---|
-| `server.py` | 受信サーバ。Python標準ライブラリのみ | 動作確認済み（curlで） |
+| `server.py` | 受信サーバ。Python標準ライブラリのみ。`mcp.json` があれば `say` で喋る | 動作確認済み（curl / 常駐ゲートウェイ相手に） |
+| `walk.py` | 散歩ループ。常駐ゲートウェイに `take_photo` を頼み server.py へ渡す | 本体未接続の経路まで確認済み |
+| `mcp.json.example` | Claude Code に常駐ゲートウェイを教える設定。`mcp.json` にコピーして合言葉を入れる | |
 | `index.html` | ブラウザで最新の写真とコメントを見るページ（`http://PC:5072/`） | 動作確認済み |
 | `look.sh` | 手動で1枚 `claude -p` に見せるテスト用 | 動作確認済み |
 | `reflect.py` | 内省。日記を読み返して `memory.md`（長期記憶）を書き直す。`POST /reflect` でも起動 | 動作確認済み |
 | `personas/osanpo.md` | 写真を見て喋る人格: **おさんぽの子**（既定。名前は本人が後で決める） | 動作確認済み |
 | `personas/vert.md` | 同: ヴェルティ（参謀。散歩には出ない） | 動作確認済み |
 | `personas/ortiz.md` | 同: オルティス。**中身はゆうころが書く**（雛形のみ） | 未記入 |
-| `firmware/README.md` | 出荷時アプリの吸い出し・書き戻し・書き込みの手順 | |
-| `firmware/osanpo_stackchan/` | StackChan側スケッチ | **実機未検証の草案** |
+| `firmware/README.md` | stackchan-mcp への書き換え手順、出荷時アプリの吸い出し・書き戻し | |
+| `firmware/legacy-own-sketch/` | 自作スケッチ。**不採用**（参考のみ） | |
 | `faces/` | 家族の顔照合（ミニPC内で完結、OpenCV）。名前だけをClaudeに渡す | 顔なし画像で0件まで確認。登録後の精度は実機で |
 | `windows/` | ミニPC（Windows 11）で自動起動させる手順とスクリプト | 実機未検証 |
 | `docs/decisions.md` | **決めたこと一覧。忘れたらまずここ** | |
@@ -127,19 +130,22 @@ python3 osanpo/faces/faces.py who photo.jpg   # 確認
 
 ## 手順（時系列）
 
-1. **フェーズ0 サーバ側（今日、部品なし）**: 上の「まず動かす」を通す。`latest.txt` に一言が入れば合格
-2. **フェーズ1 開封と初期ファーム確認**: 出荷時アプリの設定画面を記録（カスタムAPIの有無）。**esptoolでフラッシュ16MBを丸ごと吸い出して保管**してから書き換えに進む（`firmware/README.md`）
-3. **フェーズ1 書き込み環境**: Arduino IDEにM5Stackボード定義とM5CoreS3ライブラリを入れる。`SSID/PASS/SERVER` を書き換えて書き込む
-4. **フェーズ1 室内テスト**: 家のWi-FiでPCと同じネットワークに置き、`shots/` に写真が溜まり `latest.txt` が更新されるのを確認
-5. **フェーズ1 テザリングテスト**: スマホのテザリングにPCとStackChanを両方つなぎ、同じことが起きるか確認
-6. **初散歩（ミニPC＋モバイルバッテリー持ち歩き）**: 顔を外向きにして固定。5分ごとに一言出れば成功
-7. **フェーズ2 3Dオフィス連携**: `latest.txt` の更新を `server.js` 側に流し、散歩中キャラの吹き出しに出す
-8. **フェーズ3 口**: `latest.txt` をミニPCで音声合成し `latest.wav` を置く。StackChanが取りに来て喋る。**声はゆうころの声を学習したもの**（道具はその時点で最新を調べて選ぶ）
-9. **自宅ミニPC常駐**: Cloudflare Tunnelで `osanpo.ortiz-ai.partners` → ミニPCの5072へ。荷物ゼロで散歩できるようにする（手順は docs/）
-10. **電池**: 5分間隔での実測稼働時間を測り、必要ならlight sleepを入れる
+1. **サーバ側（部品なしでできる）**: 上の「まず動かす」を通す。`latest.txt` に一言が入れば合格
+2. **StackChan の紐付け解除と保険**: アプリで Unbind & Reset → esptool で16MB吸い出し（`firmware/README.md`）
+3. **stackchan-mcp のファーム書き込み**: `merged-binary.bin` を `write_flash 0x0`。初回起動でWi-FiとゲートウェイURLを設定
+4. **ミニPCでゲートウェイ常駐**: `stackchan-mcp serve --transport streamable-http`。`mcp.json` を作る
+5. **室内テスト**: `python3 osanpo/walk.py --once` で写真が届き、その子が `say` で喋れば合格。次に5分ループ
+6. **口の声**: VOICEVOX（家の中）で仮の声。ゆうころの声（Irodori）はフェーズ3
+7. **テザリングテスト**: iPhoneのテザリングにミニPCとStackChanを両方つなぐ
+8. **初散歩（ミニPC＋モバイルバッテリー持ち歩き）**: 顔を外向きに固定。5分ごとに一言出れば成功
+9. **耳**: `listen`（faster-whisper）でゆうころの声の返事を日記へ
+10. **3Dオフィス連携**: 日記の更新を `server.js` に流し、散歩中キャラの吹き出しに出す
+11. **自宅ミニPC常駐**: Cloudflare Tunnel で ws 8765 / http 8766 を外に出し、本体の Fallback Gateway URL に入れる。荷物ゼロ化
+12. **電池**: 実測
 
 ## まだわかっていないこと
 
-- 公式StackChanの出荷時ファームウェアが何か、CoreS3と書き込み手順が完全に同じか（開封後に確認）
+- stackchan-mcp のファームが手元の個体で一発で動くか（実機未検証）
 - 700mAhで5分間隔の実稼働時間（実測待ち）
+- Claude 側で写真が学習に使われるかの設定（契約と設定に従う。未確認）
 - カメラは画面と同じ面。散歩では顔を外向きに持つ必要がある

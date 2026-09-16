@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """お散歩Claude 受信サーバ（依存パッケージなし・Python標準ライブラリのみ）
 
-StackChan（や、テスト用のスマホ/curl）が POST /upload でJPEGを送ってくると、
+写真の入り口は2つ:
+  - walk.py が stackchan-mcp 常駐ゲートウェイから take_photo で取って POST /upload（本命）
+  - 何かが直接 POST /upload（テスト用のスマホ/curl、または自作スケッチ）
+osanpo/mcp.json があれば StackChan モードになり、その子は一言を mcp__stackchan__say で喋る。
+
+POST /upload でJPEGが届くと、
   1. osanpo/shots/YYYYmmdd-HHMMSS.jpg として保存
   2. osanpo/latest.jpg を上書き
   3. バックグラウンドで頭脳（claude -p か OpenAI API）に見せて一言を latest.txt に書く
@@ -55,6 +60,8 @@ DIARY = os.path.join(HERE, 'diary.log')
 DIARY_JSONL = os.path.join(HERE, 'diary.jsonl')
 MEMORY = os.path.join(HERE, 'memory.md')       # 長期記憶（reflect.py が書く）
 WALK = os.path.join(HERE, '.walk.json')        # いまの散歩の会話ID {"session_id", "last_ts"}
+MCP_JSON = os.path.join(HERE, 'mcp.json')       # あれば StackChan モード: say で喋り、表情を切り替える
+STACKCHAN_TOOLS = ['mcp__stackchan__say', 'mcp__stackchan__set_avatar', 'mcp__stackchan__move_head']
 WALK_GAP_MIN = int(os.environ.get('OSANPO_WALK_GAP_MIN', '90'))  # これ以上空いたら新しい散歩
 PERSONA_NAME = os.environ.get('OSANPO_PERSONA', 'osanpo')
 PERSONA = os.path.join(HERE, 'personas', PERSONA_NAME + '.md')
@@ -213,8 +220,16 @@ def load_memory():
         return ''
 
 
+def stackchan_mode():
+    return os.path.exists(MCP_JSON)
+
+
 def build_prompt(path, people, resumed, asks=None):
     prompt = PROMPT.format(path=path)
+    if stackchan_mode():
+        prompt += ('\n一言が決まったら mcp__stackchan__say でその一言を喋る（text にそのまま渡す。'
+                   '気分に合う絵文字を1つ文頭に入れると表情も変わる: 😊 🤔 😲 😢 😳）。'
+                   '喋ったあと、返答の本文にはその一言だけを書く。')
     if people:
         prompt = f'この写真に映っているのは: {", ".join(people)}（家のカメラで照合済み）\n{prompt}'
     if asks:
@@ -241,14 +256,21 @@ def system_prompt():
 
 
 def _run_claude(prompt, session_id):
-    cmd = ['claude', '-p', prompt, '--allowedTools', 'Read', '--output-format', 'json',
+    tools = ['Read'] + (STACKCHAN_TOOLS if stackchan_mode() else [])
+    cmd = ['claude', '-p', prompt, '--allowedTools', *tools, '--output-format', 'json',
            '--append-system-prompt', system_prompt()]
+    if stackchan_mode():
+        cmd += ['--mcp-config', MCP_JSON, '--strict-mcp-config']
     if session_id:
         cmd += ['--resume', session_id]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
     j = json.loads(r.stdout)
     if j.get('is_error'):
         raise RuntimeError(j.get('result') or 'claude error')
+    denied = j.get('permission_denials') or []
+    if denied:
+        print(f'claude が使えなかった道具: {[d.get("tool_name") for d in denied]}', flush=True)
+    print(f'claude: {j.get("num_turns")} turns', flush=True)
     return (j.get('result') or '(無言)').strip().replace('\n', ' '), j.get('session_id')
 
 
@@ -445,7 +467,7 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == '__main__':
     face_state = 'ON' if (faces and faces.available() and os.path.exists(faces.DB)) else 'OFF'
     brain = 'OFF' if NO_CLAUDE else f'{BRAIN}' + (f':{OPENAI_MODEL}' if BRAIN == 'openai' else '')
-    print(f'osanpo server on http://0.0.0.0:{PORT}  (persona: {DISPLAY.get(PERSONA_NAME, PERSONA_NAME)}, brain: {brain}, token: {"SET" if TOKEN else "NONE - 家の中限定"}, faces: {face_state})')
+    print(f'osanpo server on http://0.0.0.0:{PORT}  (persona: {DISPLAY.get(PERSONA_NAME, PERSONA_NAME)}, brain: {brain}, token: {"SET" if TOKEN else "NONE - 家の中限定"}, faces: {face_state}, stackchan: {"ON (say で喋る)" if stackchan_mode() else "OFF"})')
     if not os.path.exists(PERSONA):
         print(f'注意: 人格ファイルがない {PERSONA}', flush=True)
     ThreadingHTTPServer(('0.0.0.0', PORT), Handler).serve_forever()

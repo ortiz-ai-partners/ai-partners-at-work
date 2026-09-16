@@ -69,6 +69,28 @@ $t = New-ScheduledTaskTrigger -Daily -At 23:00
 Register-ScheduledTask -TaskName 'OsanpoReflect' -Action $a -Trigger $t -Force
 ```
 
+## 4.5 StackChan のゲートウェイを常駐させる
+
+```powershell
+pip install stackchan-mcp
+copy osanpo\mcp.json.example osanpo\mcp.json     # 中の合言葉を STACKCHAN_TOKEN と同じに
+```
+
+`osanpo\windows\osanpo.env` に足す:
+```
+STACKCHAN_TOKEN=ゲートウェイの合言葉
+VISION_HOST=ミニPCのLAN IP
+```
+
+常駐タスク（ログオン時）:
+```powershell
+$a = New-ScheduledTaskAction -Execute 'stackchan-mcp' -Argument 'serve --transport streamable-http' -WorkingDirectory (Get-Location).Path
+$t = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+Register-ScheduledTask -TaskName 'StackChanGateway' -Action $a -Trigger $t -Force
+```
+散歩ループも同様に `python osanpo\walk.py` を登録する（散歩の時だけ手で起動でもよい）。
+声を出すなら VOICEVOX の Windows 版を入れて起動しておく。
+
 ## 5. Cloudflare Tunnel を張る
 
 Cloudflareダッシュボード → Zero Trust → Networks → Tunnels →「トンネルを作成」→ Windows を選ぶと
