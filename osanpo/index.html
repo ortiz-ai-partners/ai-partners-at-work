@@ -5,9 +5,11 @@
 img{max-width:100%;border-radius:8px}p{font-size:1.4em}
 form{display:flex;gap:8px;margin:12px 0}input{flex:1;font-size:1.1em;padding:10px;border-radius:8px;border:1px solid #555;background:#222;color:#eee}
 button{font-size:1.1em;padding:10px 16px;border-radius:8px;border:0;background:#3a7;color:#fff}
+#asks{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:8px 0}.ask{background:#222;border-radius:8px;padding:8px;font-size:.9em}.ask img{width:96px;height:96px;border-radius:6px;display:block;margin:0 auto 6px}.ask input{width:110px;font-size:1em;padding:6px;margin:4px 0}.ask button{font-size:.9em;padding:6px 10px;margin:2px}
 pre{text-align:left;white-space:pre-wrap;font-size:.9em;color:#bbb;max-height:40vh;overflow:auto}</style></head>
 <body><h1>🚶 お散歩Claude</h1><img id="i" alt="まだ写真がない"><p id="t">…</p>
 <form id="f"><input id="r" placeholder="返事する" autocomplete="off"><button>送る</button><button type="button" id="nw" title="この散歩を終える（自動で内省）">散歩おわり</button></form>
+<div id="asks"></div>
 <pre id="d"></pre>
 <script>
 const q=new URLSearchParams(location.search).get('token');
@@ -16,7 +18,10 @@ async function tick(){
   try{const r=await fetch('/latest.txt?_='+Date.now()+tok,{cache:'no-store'});if(r.ok)document.getElementById('t').textContent=await r.text();}catch(e){}
   try{const r=await fetch('/diary.txt?_='+Date.now()+tok,{cache:'no-store'});if(r.ok){const l=(await r.text()).trim().split('\n');document.getElementById('d').textContent=l.slice(-12).join('\n');}}catch(e){}
   document.getElementById('i').src='/latest.jpg?_='+Date.now()+tok;
+  try{const r=await fetch('/asks.json?_='+Date.now()+tok,{cache:'no-store'});if(r.ok){const a=await r.json();
+    document.getElementById('asks').innerHTML=a.map(x=>`<div class="ask"><img src="/candidates/${x.id}.jpg?_=${Date.now()}${tok}">この人だれ？（${x.count}回）<br><input id="n${x.id}" placeholder="名前"><br><button onclick="ans('${x.id}',document.getElementById('n${x.id}').value)">覚える</button><button onclick="ans('${x.id}','だめ')">覚えない</button></div>`).join('');}}catch(e){}
 }
+async function ans(id,name){ if(!name)return; await fetch('/reply?_='+Date.now()+tok,{method:'POST',headers:{'Content-Type':'text/plain; charset=utf-8'},body:'#'+id+' '+name}); tick(); }
 document.getElementById('f').onsubmit=async e=>{
   e.preventDefault();const el=document.getElementById('r');const v=el.value.trim();if(!v)return;
   await fetch('/reply?_='+Date.now()+tok,{method:'POST',headers:{'Content-Type':'text/plain; charset=utf-8'},body:v});
