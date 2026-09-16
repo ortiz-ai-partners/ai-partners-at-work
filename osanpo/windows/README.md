@@ -12,6 +12,12 @@ winget install Cloudflare.cloudflared
 npm install -g @anthropic-ai/claude-code
 ```
 
+家族の顔認識も使うなら追加で:
+
+```powershell
+pip install opencv-python-headless numpy
+```
+
 その後、普通のターミナルで `claude` を一度起動してログインしておく（`claude -p` はこのログインを使う）。
 動作確認:
 

@@ -33,6 +33,7 @@ Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ�
 | `look.sh` | 手動で1枚 `claude -p` に見せるテスト用 | 動作確認済み |
 | `persona.md` | 写真を見て喋る人格（ヴェルティ）。`claude -p --append-system-prompt` で渡す | 動作確認済み |
 | `firmware/osanpo_stackchan/` | StackChan側スケッチ | **実機未検証の草案** |
+| `faces/` | 家族の顔照合（ミニPC内で完結、OpenCV）。名前だけをClaudeに渡す | 顔なし画像で0件まで確認。登録後の精度は実機で |
 | `windows/` | ミニPC（Windows 11）で自動起動させる手順とスクリプト | 実機未検証 |
 | `docs/` | 設計メモ（ドメイン共存・Cloudflare Tunnel手順） | |
 
@@ -47,6 +48,21 @@ cat osanpo/latest.txt
 
 `claude` を呼ばず配線だけ確かめたい時は `OSANPO_NO_CLAUDE=1 python3 osanpo/server.py`。
 
+## 家族の顔を認識する（任意）
+
+Claude 自身は顔から人物を特定しない。代わりに **ミニPCの中で** OpenCV（YuNet + SFace）で照合し、
+「映っているのは: ゆうころ, はるくん」という文字だけを `claude -p` に渡す。写真・顔データは外に出ない。
+
+```bash
+pip install opencv-python-headless numpy
+sh osanpo/faces/download_models.sh
+# osanpo/faces/people/<名前>/ に正面写真を3〜5枚ずつ（登録する人の了解を先に）
+python3 osanpo/faces/faces.py enroll
+python3 osanpo/faces/faces.py who photo.jpg   # 確認
+```
+
+`db.npz` があれば server.py が自動で使う。知らない顔は数だけ記録し、ヴェルティは言及しない。
+
 ## 環境変数
 
 | 変数 | 既定 | 意味 |
@@ -56,6 +72,7 @@ cat osanpo/latest.txt
 | `OSANPO_PROMPT` | 「何が見えるか一文で」 | `{path}` が画像パスに置き換わる |
 | `OSANPO_TOKEN` | 未設定 | 合言葉。外に公開するときは必須。`X-Osanpo-Token` ヘッダか `?token=` で照合 |
 | `OSANPO_CONTEXT_TURNS` | 8 | 写真を見るとき直近何発言を渡すか |
+| `OSANPO_FACE_THRESHOLD` | 0.363 | 顔照合の一致しきい値（SFace公式のcosine値）。誤認が多ければ上げる |
 
 ## 外から届くようにする（Cloudflare Tunnel）
 
