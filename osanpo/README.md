@@ -17,10 +17,23 @@ Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ�
 
 ## 日記（双方の会話が残る）
 
-写真を見て喋るのはヴェルティ（`persona.md`）。ゆうころは閲覧ページの入力欄か `POST /reply` で返事ができ、
-ヴェルティは次の写真を見るとき直近の会話（既定8発言）を踏まえて続ける。
+写真を見て喋るのは `OSANPO_PERSONA` で選んだ人格（`personas/`）。ゆうころは閲覧ページの入力欄か `POST /reply` で返事ができ、
+次の写真を見るとき直近の会話（既定8発言）を踏まえて続ける。
 
-- `diary.jsonl`: 機械用。1行1発言 `{"ts","role":"vert"|"yukoro","text","photo"}`。**将来ご自宅LLMを育てる教材。消さない**
+## 人格と頭脳の切り替え
+
+| 変数 | 値 | 意味 |
+|---|---|---|
+| `OSANPO_PERSONA` | `vert`（既定） / `ortiz` | `personas/<値>.md` を人格として使う。日記の `role` にもこの値が入る |
+| `OSANPO_BRAIN` | `claude`（既定） / `openai` | 写真を見る頭脳。`claude` はClaude Code経由で従量課金なし。`openai` は `OPENAI_API_KEY` が必要で写真1枚ごとに課金 |
+| `OSANPO_OPENAI_MODEL` | `gpt-4o-mini` | `openai` のとき使うモデル。手元で最新の画像対応モデル名に変える |
+
+例: 散歩はオルティス＋GPT、机ではヴェルティ＋Claude。
+```
+OSANPO_PERSONA=ortiz OSANPO_BRAIN=openai OPENAI_API_KEY=sk-... python3 osanpo/server.py
+```
+
+- `diary.jsonl`: 機械用。1行1発言 `{"ts","role":"vert"|"ortiz"|"yukoro","text","photo","people"}`。**将来ご自宅LLMを育てる教材。消さない**
 - `diary.log`: 人間用。`時刻 <TAB> 名前 <TAB> 発言`
 - `GET /diary.txt` で閲覧ページに直近12行を表示
 
@@ -31,7 +44,8 @@ Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ�
 | `server.py` | 受信サーバ。Python標準ライブラリのみ | 動作確認済み（curlで） |
 | `index.html` | ブラウザで最新の写真とコメントを見るページ（`http://PC:5072/`） | 動作確認済み |
 | `look.sh` | 手動で1枚 `claude -p` に見せるテスト用 | 動作確認済み |
-| `persona.md` | 写真を見て喋る人格（ヴェルティ）。`claude -p --append-system-prompt` で渡す | 動作確認済み |
+| `personas/vert.md` | 写真を見て喋る人格: ヴェルティ | 動作確認済み |
+| `personas/ortiz.md` | 同: オルティス。**中身はゆうころが書く**（雛形のみ） | 未記入 |
 | `firmware/osanpo_stackchan/` | StackChan側スケッチ | **実機未検証の草案** |
 | `faces/` | 家族の顔照合（ミニPC内で完結、OpenCV）。名前だけをClaudeに渡す | 顔なし画像で0件まで確認。登録後の精度は実機で |
 | `windows/` | ミニPC（Windows 11）で自動起動させる手順とスクリプト | 実機未検証 |

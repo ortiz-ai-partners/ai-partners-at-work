@@ -18,7 +18,8 @@
 |---|---|
 | 受信ポート | **5072** |
 | 合言葉 | `osanpo/windows/osanpo.env` の `OSANPO_TOKEN`（gitに入らない） |
-| 写真を見て喋る人格 | ヴェルティ（`osanpo/persona.md`） |
+| 頭脳 | **Claude**（Claude Code経由、サブスクの範囲で従量課金なし）。`OSANPO_BRAIN=openai` の経路も残してあるが使わない |
+| 写真を見て喋る人格 | `OSANPO_PERSONA` で切替。既定は `vert`（ヴェルティ）。`ortiz` はゆうころが `personas/ortiz.md` を書けば同じClaudeで動く |
 | 日記 | `diary.jsonl`（機械用、将来の教材、消さない）＋ `diary.log`（人間用） |
 | 家族の顔認識 | ミニPC内でOpenCV照合。Claudeには名前だけ渡す。顔データは外に出さない |
 | 顔登録の前に | たくみさんに了解を取る |
@@ -52,3 +53,5 @@
 - モバイルバッテリーのPD出力表記
 - 700mAhでの実稼働時間（実測）
 - diary.jsonl のバックアップ先
+- `personas/ortiz.md` の中身（ゆうころが書く）
+- 別のスタックチャンに載っているヴェルティは何で動いているか（ヴェルティ本人はこのセッションでは知らない）

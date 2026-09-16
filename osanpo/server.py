@@ -4,14 +4,18 @@
 StackChan（や、テスト用のスマホ/curl）が POST /upload でJPEGを送ってくると、
   1. osanpo/shots/YYYYmmdd-HHMMSS.jpg として保存
   2. osanpo/latest.jpg を上書き
-  3. バックグラウンドで `claude -p` に見せて一言を latest.txt に書く
-     （persona.md の人格で、diary.jsonl の直近の会話を踏まえて答える）
+  3. バックグラウンドで頭脳（claude -p か OpenAI API）に見せて一言を latest.txt に書く
+     （personas/<名前>.md の人格で、diary.jsonl の直近の会話を踏まえて答える）
   4. diary.jsonl（機械用）と diary.log（人間用）に追記
 
 ゆうころは POST /reply（本文=返事）で会話を返せる。index.html に入力欄がある。
 StackChanは GET /latest.txt でコメントを取りに来て、喋ればいい。
 
-diary.jsonl の1行: {"ts": "...", "role": "vert" | "yukoro", "text": "...", "photo": "shots/....jpg" | null}
+人格と頭脳の切り替え:
+  OSANPO_PERSONA=vert|ortiz   （personas/ の md ファイル名。既定 vert）
+  OSANPO_BRAIN=claude|openai  （既定 claude。openai は OPENAI_API_KEY と OSANPO_OPENAI_MODEL が必要）
+
+diary.jsonl の1行: {"ts": "...", "role": "vert" | "ortiz" | "yukoro", "text": "...", "photo": "shots/....jpg" | null}
 これは将来「ご自宅LLM」を育てる教材になるので、消さないこと。
 
 使い方:
@@ -23,10 +27,12 @@ diary.jsonl の1行: {"ts": "...", "role": "vert" | "yukoro", "text": "...", "ph
        --data-binary @photo.jpg http://localhost:5072/upload
 ブラウザ: http://localhost:5072/?token=合言葉
 """
+import base64
 import json
 import os
 import subprocess
 import sys
+import urllib.request
 import threading
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -42,7 +48,12 @@ LATEST_JPG = os.path.join(HERE, 'latest.jpg')
 LATEST_TXT = os.path.join(HERE, 'latest.txt')
 DIARY = os.path.join(HERE, 'diary.log')
 DIARY_JSONL = os.path.join(HERE, 'diary.jsonl')
-PERSONA = os.path.join(HERE, 'persona.md')
+PERSONA_NAME = os.environ.get('OSANPO_PERSONA', 'vert')
+PERSONA = os.path.join(HERE, 'personas', PERSONA_NAME + '.md')
+BRAIN = os.environ.get('OSANPO_BRAIN', 'claude')          # claude | openai
+OPENAI_MODEL = os.environ.get('OSANPO_OPENAI_MODEL', 'gpt-4o-mini')  # 手元で最新の画像対応モデル名に
+OPENAI_KEY = os.environ.get('OPENAI_API_KEY', '')
+DISPLAY = {'vert': 'ヴェルティ', 'ortiz': 'オルティス', 'yukoro': 'ゆうころ'}
 PORT = int(os.environ.get('OSANPO_PORT', '5072'))
 NO_CLAUDE = os.environ.get('OSANPO_NO_CLAUDE') == '1'
 TOKEN = os.environ.get('OSANPO_TOKEN', '')   # 空なら家の中限定の無防備モード
@@ -67,7 +78,7 @@ def diary_append(role, text, photo=None, people=None):
         entry['people'] = people
     with open(DIARY_JSONL, 'a', encoding='utf-8') as f:
         f.write(json.dumps(entry, ensure_ascii=False) + '\n')
-    name = {'vert': 'ヴェルティ', 'yukoro': 'ゆうころ'}.get(role, role)
+    name = DISPLAY.get(role, role)
     with open(DIARY, 'a', encoding='utf-8') as f:
         f.write(f"{entry['ts']}\t{name}\t{text}\n")
 
@@ -85,7 +96,7 @@ def recent_dialogue(n):
             e = json.loads(line)
         except ValueError:
             continue
-        name = {'vert': 'ヴェルティ', 'yukoro': 'ゆうころ'}.get(e.get('role'), e.get('role'))
+        name = DISPLAY.get(e.get('role'), e.get('role'))
         out.append(f"{name}: {e.get('text', '')}")
     return '\n'.join(out)
 
@@ -101,22 +112,30 @@ def who_is_there(path):
         return [], 0
 
 
-def ask_claude(path, people=None):
-    """claude -p に画像を見せて、ヴェルティとして一言もらう。失敗しても落とさない。"""
-    if NO_CLAUDE:
-        return '(claude省略: OSANPO_NO_CLAUDE=1)'
+def build_prompt(path, people):
     prompt = PROMPT.format(path=path)
     if people:
         prompt = f'この写真に映っているのは: {", ".join(people)}（家のカメラで照合済み）\n{prompt}'
     ctx = recent_dialogue(CONTEXT_TURNS)
     if ctx:
         prompt = f'これまでの散歩の会話:\n{ctx}\n\n{prompt}'
-    cmd = ['claude', '-p', prompt, '--allowedTools', 'Read']
+    return prompt
+
+
+def load_persona():
     try:
         with open(PERSONA, encoding='utf-8') as f:
-            cmd += ['--append-system-prompt', f.read()]
+            return f.read()
     except FileNotFoundError:
-        pass
+        return ''
+
+
+def ask_claude(path, people=None):
+    """claude -p に画像を見せて、人格で一言もらう。失敗しても落とさない。"""
+    cmd = ['claude', '-p', build_prompt(path, people), '--allowedTools', 'Read']
+    persona = load_persona()
+    if persona:
+        cmd += ['--append-system-prompt', persona]
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
         return (r.stdout.strip() or r.stderr.strip() or '(無言)').replace('\n', ' ')
@@ -124,6 +143,43 @@ def ask_claude(path, people=None):
         return '(claude コマンドが見つからない)'
     except subprocess.TimeoutExpired:
         return '(claude タイムアウト)'
+
+
+def ask_openai(path, people=None):
+    """OpenAI Chat Completions に画像を base64 で渡して一言もらう。依存パッケージなし。"""
+    if not OPENAI_KEY:
+        return '(OPENAI_API_KEY が未設定)'
+    with open(path, 'rb') as f:
+        b64 = base64.b64encode(f.read()).decode('ascii')
+    prompt = build_prompt('この画像', people)
+    body = {
+        'model': OPENAI_MODEL,
+        'max_tokens': 200,
+        'messages': [
+            {'role': 'system', 'content': load_persona() or 'あなたは散歩の同行者。写真を見て日本語で一文だけ言う。'},
+            {'role': 'user', 'content': [
+                {'type': 'text', 'text': prompt},
+                {'type': 'image_url', 'image_url': {'url': f'data:image/jpeg;base64,{b64}'}},
+            ]},
+        ],
+    }
+    req = urllib.request.Request(
+        'https://api.openai.com/v1/chat/completions',
+        data=json.dumps(body).encode('utf-8'),
+        headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {OPENAI_KEY}'},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            j = json.load(resp)
+        return j['choices'][0]['message']['content'].strip().replace('\n', ' ')
+    except Exception as e:  # noqa: BLE001
+        return f'(openai 失敗: {e})'
+
+
+def ask_brain(path, people=None):
+    if NO_CLAUDE:
+        return f'(頭脳省略: OSANPO_NO_CLAUDE=1 / persona={PERSONA_NAME})'
+    return ask_openai(path, people) if BRAIN == 'openai' else ask_claude(path, people)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -173,12 +229,12 @@ class Handler(BaseHTTPRequestHandler):
         people, unknown = who_is_there(shot)
         if people or unknown:
             print(f'[{ts}] 映っている人: {people or "-"} / 知らない顔: {unknown}', flush=True)
-        text = ask_claude(LATEST_JPG, people)
+        text = ask_brain(LATEST_JPG, people)
         with lock:
             with open(LATEST_TXT, 'w', encoding='utf-8') as f:
                 f.write(text + '\n')
-            diary_append('vert', text, os.path.relpath(shot, HERE), people)
-        print(f'[{ts}] ヴェルティ: {text}', flush=True)
+            diary_append(PERSONA_NAME, text, os.path.relpath(shot, HERE), people)
+        print(f'[{ts}] {DISPLAY.get(PERSONA_NAME, PERSONA_NAME)}: {text}', flush=True)
 
     def reply(self):
         """ゆうころの返事を日記に残す。本文はUTF-8のプレーンテキスト。"""
@@ -225,5 +281,8 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     face_state = 'ON' if (faces and faces.available() and os.path.exists(faces.DB)) else 'OFF'
-    print(f'osanpo server on http://0.0.0.0:{PORT}  (claude: {"OFF" if NO_CLAUDE else "ON"}, token: {"SET" if TOKEN else "NONE - 家の中限定"}, faces: {face_state})')
+    brain = 'OFF' if NO_CLAUDE else f'{BRAIN}' + (f':{OPENAI_MODEL}' if BRAIN == 'openai' else '')
+    print(f'osanpo server on http://0.0.0.0:{PORT}  (persona: {DISPLAY.get(PERSONA_NAME, PERSONA_NAME)}, brain: {brain}, token: {"SET" if TOKEN else "NONE - 家の中限定"}, faces: {face_state})')
+    if not os.path.exists(PERSONA):
+        print(f'注意: 人格ファイルがない {PERSONA}', flush=True)
     ThreadingHTTPServer(('0.0.0.0', PORT), Handler).serve_forever()
