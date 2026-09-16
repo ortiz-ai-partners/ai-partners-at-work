@@ -23,6 +23,8 @@ Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ�
 | `index.html` | ブラウザで最新の写真とコメントを見るページ（`http://PC:5072/`） | 動作確認済み |
 | `look.sh` | 手動で1枚 `claude -p` に見せるテスト用 | 動作確認済み |
 | `firmware/osanpo_stackchan/` | StackChan側スケッチ | **実機未検証の草案** |
+| `windows/` | ミニPC（Windows 11）で自動起動させる手順とスクリプト | 実機未検証 |
+| `docs/` | 設計メモ（ドメイン共存・Cloudflare Tunnel手順） | |
 
 ## まず動かす（部品なしでできる）
 

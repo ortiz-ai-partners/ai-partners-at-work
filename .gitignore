@@ -7,3 +7,5 @@ osanpo/latest.jpg
 osanpo/latest.txt
 osanpo/diary.log
 __pycache__/
+osanpo/windows/osanpo.env
+osanpo/windows/osanpo.log
