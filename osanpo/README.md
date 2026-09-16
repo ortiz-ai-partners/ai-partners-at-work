@@ -26,9 +26,10 @@ Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ�
 diary.jsonl（生ログ、全部）──内省(reflect.py)──▶ memory.md（覚えたこと）──毎回prompt──▶ その子
 ```
 
-- **短期**: 直近8発言（`OSANPO_CONTEXT_TURNS`）
+- **散歩の中**: 散歩1回＝1つのClaude会話。写真ごとに `--resume` で同じ会話を続けるので、その散歩で見た**写真と会話の全部**を持ったまま歩く。90分（`OSANPO_WALK_GAP_MIN`）空くか「散歩おわり」ボタン（`POST /newwalk`）で散歩が終わり、自動で内省が走る
+- **散歩をまたぐ**: 新しい散歩の最初に、前回までの直近8発言（`OSANPO_CONTEXT_TURNS`）を渡す
 - **長期**: `memory.md`。見出しは「自分について / よく見るもの・場所 / ゆうころ・はるくんについて / 覚えたこと / 気になっていること」
-- **内省**: `python3 osanpo/reflect.py` を散歩の終わりか夜に1回。閲覧ページの「内省」ボタンでも同じ。上限 `OSANPO_MEMORY_MAX`（既定3000文字）
+- **内省**: 散歩が終わると自動。手動なら `python3 osanpo/reflect.py` か `POST /reflect`。上限 `OSANPO_MEMORY_MAX`（既定3000文字）
 - memory.md は手で直してよい。「これは違うよ」と書き換えるのも育て方のひとつ
 - 思考ジャンプ: 人格文で「いま見たものから覚えていることへ飛んでよい（そういえば〜）」と許可している。毎回飛ぶわけではない
 
@@ -97,7 +98,8 @@ python3 osanpo/faces/faces.py who photo.jpg   # 確認
 | `OSANPO_NO_CLAUDE` | 未設定 | `1` で claude を呼ばない |
 | `OSANPO_PROMPT` | 「何が見えるか一文で」 | `{path}` が画像パスに置き換わる |
 | `OSANPO_TOKEN` | 未設定 | 合言葉。外に公開するときは必須。`X-Osanpo-Token` ヘッダか `?token=` で照合 |
-| `OSANPO_CONTEXT_TURNS` | 8 | 写真を見るとき直近何発言を渡すか |
+| `OSANPO_WALK_GAP_MIN` | 90 | 写真がこれ以上（分）空いたら次は新しい散歩 |
+| `OSANPO_CONTEXT_TURNS` | 8 | 新しい散歩の最初に、前回までの直近何発言を渡すか |
 | `OSANPO_MEMORY_MAX` | 3000 | memory.md の文字数上限 |
 | `OSANPO_FACE_THRESHOLD` | 0.363 | 顔照合の一致しきい値（SFace公式のcosine値）。誤認が多ければ上げる |
 
