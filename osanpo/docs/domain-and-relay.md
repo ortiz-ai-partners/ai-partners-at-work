@@ -22,12 +22,28 @@ StackChan（テザリング）──HTTPS──▶ osanpo.ortiz-ai.partners（Cl
 
 ### 1. 準備（DNSを切り替える前に。ここが一番大事）
 
+2026-09-16 時点で外から読めた公開レコード（管理画面の一覧が正。ここは突き合わせ用の控え）:
+
+| 種別 | 名前 | 値 |
+|---|---|---|
+| NS | @ | ns1〜ns5.xserver.jp（現在の名簿の持ち主 = Xserver） |
+| A | @ | 85.131.209.11 |
+| A | www | 85.131.209.11 |
+| A | mail | 85.131.209.11 |
+| MX | @ | 0 ortiz-ai.partners. |
+| TXT | @ | `v=spf1 +a:sv16470.xserver.jp +a:ortiz-ai.partners +mx include:spf.sender.xserver.jp ~all` |
+| TXT | @ | `openai-domain-verification=dv-...`（OpenAIのドメイン認証。写す） |
+| TXT | default._domainkey | `v=DKIM1; k=rsa; p=...`（長い。Cloudflareは255文字超も扱える） |
+| TXT | _dmarc | `v=DMARC1; p=none;` |
+
+Cloudflareに写したあと、この表と管理画面の一覧の両方に対して過不足を確認する。
+
 1. Xserverサーバーパネル →「DNSレコード設定」→ `ortiz-ai.partners` の全レコードを控える（スクショ＋テキスト）
    - A（`@`, `www`, その他サブドメイン）: サイトのIP
    - MX: メールサーバー
    - TXT: SPF / DKIM / DMARC（落とすと送信メールが迷惑メール扱いになる）
    - CNAME など
-2. お名前.comにログインできること、ネームサーバー変更画面が開けることを確認
+2. ネームサーバー変更画面が開けることを確認。ドメインがXserverドメイン管理ならXserverアカウントの「ドメイン」項目、お名前.com管理ならお名前Navi（どちらか未確認。ログインして「ネームサーバー設定」がある方）
 
 ### 2. Cloudflareにドメインを追加
 
@@ -38,7 +54,7 @@ StackChan（テザリング）──HTTPS──▶ osanpo.ortiz-ai.partners（Cl
 
 ### 3. ネームサーバー切り替え
 
-1. お名前.com →「ネームサーバーの設定」→ Cloudflareの2つに変更
+1. ドメイン管理側（Xserverアカウントまたはお名前.com）→「ネームサーバー設定」→「その他のネームサーバーを使う」→ Cloudflareの2つに変更
 2. 反映まで数分〜数時間。Cloudflare側が「アクティブ」になるのを待つ
 3. **確認**: サイト表示、メール送信、メール受信の3つ。全部通るまで次に進まない
 
