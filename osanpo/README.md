@@ -24,14 +24,11 @@ Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ�
 
 | 変数 | 値 | 意味 |
 |---|---|---|
-| `OSANPO_PERSONA` | `vert`（既定） / `ortiz` | `personas/<値>.md` を人格として使う。日記の `role` にもこの値が入る |
+| `OSANPO_PERSONA` | `osanpo`（既定） / `vert` / `ortiz` | `personas/<値>.md` を人格として使う。日記の `role` にもこの値が入る |
 | `OSANPO_BRAIN` | `claude`（既定） / `openai` | 写真を見る頭脳。`claude` はClaude Code経由で従量課金なし。`openai` は `OPENAI_API_KEY` が必要で写真1枚ごとに課金 |
 | `OSANPO_OPENAI_MODEL` | `gpt-4o-mini` | `openai` のとき使うモデル。手元で最新の画像対応モデル名に変える |
 
-例: 散歩はオルティス＋GPT、机ではヴェルティ＋Claude。
-```
-OSANPO_PERSONA=ortiz OSANPO_BRAIN=openai OPENAI_API_KEY=sk-... python3 osanpo/server.py
-```
+既定のまま起動すれば「おさんぽの子」がClaudeで喋る。
 
 - `diary.jsonl`: 機械用。1行1発言 `{"ts","role":"vert"|"ortiz"|"yukoro","text","photo","people"}`。**将来ご自宅LLMを育てる教材。消さない**
 - `diary.log`: 人間用。`時刻 <TAB> 名前 <TAB> 発言`
@@ -44,7 +41,8 @@ OSANPO_PERSONA=ortiz OSANPO_BRAIN=openai OPENAI_API_KEY=sk-... python3 osanpo/se
 | `server.py` | 受信サーバ。Python標準ライブラリのみ | 動作確認済み（curlで） |
 | `index.html` | ブラウザで最新の写真とコメントを見るページ（`http://PC:5072/`） | 動作確認済み |
 | `look.sh` | 手動で1枚 `claude -p` に見せるテスト用 | 動作確認済み |
-| `personas/vert.md` | 写真を見て喋る人格: ヴェルティ | 動作確認済み |
+| `personas/osanpo.md` | 写真を見て喋る人格: **おさんぽの子**（既定。名前は本人が後で決める） | 動作確認済み |
+| `personas/vert.md` | 同: ヴェルティ（参謀。散歩には出ない） | 動作確認済み |
 | `personas/ortiz.md` | 同: オルティス。**中身はゆうころが書く**（雛形のみ） | 未記入 |
 | `firmware/osanpo_stackchan/` | StackChan側スケッチ | **実機未検証の草案** |
 | `faces/` | 家族の顔照合（ミニPC内で完結、OpenCV）。名前だけをClaudeに渡す | 顔なし画像で0件まで確認。登録後の精度は実機で |
@@ -103,7 +101,7 @@ python3 osanpo/faces/faces.py who photo.jpg   # 確認
 5. **フェーズ1 テザリングテスト**: スマホのテザリングにPCとStackChanを両方つなぎ、同じことが起きるか確認
 6. **初散歩（ミニPC＋モバイルバッテリー持ち歩き）**: 顔を外向きにして固定。5分ごとに一言出れば成功
 7. **フェーズ2 3Dオフィス連携**: `latest.txt` の更新を `server.js` 側に流し、散歩中キャラの吹き出しに出す
-8. **フェーズ3 口**: `latest.txt` をTTSで喋らせる。AIｽﾀｯｸﾁｬﾝ2の発話部分を流用
+8. **フェーズ3 口**: `latest.txt` をミニPCで音声合成し `latest.wav` を置く。StackChanが取りに来て喋る。**声はゆうころの声を学習したもの**（道具はその時点で最新を調べて選ぶ）
 9. **自宅ミニPC常駐**: Cloudflare Tunnelで `osanpo.ortiz-ai.partners` → ミニPCの5072へ。荷物ゼロで散歩できるようにする（手順は docs/）
 10. **電池**: 5分間隔での実測稼働時間を測り、必要ならlight sleepを入れる
 

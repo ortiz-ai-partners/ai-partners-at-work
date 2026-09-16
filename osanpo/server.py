@@ -12,10 +12,10 @@ StackChan（や、テスト用のスマホ/curl）が POST /upload でJPEGを送
 StackChanは GET /latest.txt でコメントを取りに来て、喋ればいい。
 
 人格と頭脳の切り替え:
-  OSANPO_PERSONA=vert|ortiz   （personas/ の md ファイル名。既定 vert）
+  OSANPO_PERSONA=osanpo|vert|ortiz   （personas/ の md ファイル名。既定 osanpo = おさんぽの子）
   OSANPO_BRAIN=claude|openai  （既定 claude。openai は OPENAI_API_KEY と OSANPO_OPENAI_MODEL が必要）
 
-diary.jsonl の1行: {"ts": "...", "role": "vert" | "ortiz" | "yukoro", "text": "...", "photo": "shots/....jpg" | null}
+diary.jsonl の1行: {"ts": "...", "role": "osanpo" | "vert" | "ortiz" | "yukoro", "text": "...", "photo": "shots/....jpg" | null}
 これは将来「ご自宅LLM」を育てる教材になるので、消さないこと。
 
 使い方:
@@ -48,12 +48,12 @@ LATEST_JPG = os.path.join(HERE, 'latest.jpg')
 LATEST_TXT = os.path.join(HERE, 'latest.txt')
 DIARY = os.path.join(HERE, 'diary.log')
 DIARY_JSONL = os.path.join(HERE, 'diary.jsonl')
-PERSONA_NAME = os.environ.get('OSANPO_PERSONA', 'vert')
+PERSONA_NAME = os.environ.get('OSANPO_PERSONA', 'osanpo')
 PERSONA = os.path.join(HERE, 'personas', PERSONA_NAME + '.md')
 BRAIN = os.environ.get('OSANPO_BRAIN', 'claude')          # claude | openai
 OPENAI_MODEL = os.environ.get('OSANPO_OPENAI_MODEL', 'gpt-4o-mini')  # 手元で最新の画像対応モデル名に
 OPENAI_KEY = os.environ.get('OPENAI_API_KEY', '')
-DISPLAY = {'vert': 'ヴェルティ', 'ortiz': 'オルティス', 'yukoro': 'ゆうころ'}
+DISPLAY = {'osanpo': 'おさんぽの子', 'vert': 'ヴェルティ', 'ortiz': 'オルティス', 'yukoro': 'ゆうころ'}  # 名前が決まったら osanpo の表示名を変える
 PORT = int(os.environ.get('OSANPO_PORT', '5072'))
 NO_CLAUDE = os.environ.get('OSANPO_NO_CLAUDE') == '1'
 TOKEN = os.environ.get('OSANPO_TOKEN', '')   # 空なら家の中限定の無防備モード
