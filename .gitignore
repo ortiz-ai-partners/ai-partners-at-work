@@ -6,3 +6,4 @@ osanpo/shots/
 osanpo/latest.jpg
 osanpo/latest.txt
 osanpo/diary.log
+__pycache__/
