@@ -13,7 +13,7 @@ StackChanは GET /latest.txt でコメントを取りに来て、喋ればいい
   python3 osanpo/server.py                # 通常
   OSANPO_NO_CLAUDE=1 python3 osanpo/server.py   # claudeを呼ばず保存だけ（配線テスト用）
 テスト:
-  curl -X POST -H 'Content-Type: image/jpeg' --data-binary @photo.jpg http://localhost:3940/upload
+  curl -X POST -H 'Content-Type: image/jpeg' --data-binary @photo.jpg http://localhost:5072/upload
 """
 import os
 import subprocess
@@ -26,7 +26,7 @@ SHOTS = os.path.join(HERE, 'shots')
 LATEST_JPG = os.path.join(HERE, 'latest.jpg')
 LATEST_TXT = os.path.join(HERE, 'latest.txt')
 DIARY = os.path.join(HERE, 'diary.log')
-PORT = int(os.environ.get('OSANPO_PORT', '3940'))
+PORT = int(os.environ.get('OSANPO_PORT', '5072'))
 NO_CLAUDE = os.environ.get('OSANPO_NO_CLAUDE') == '1'
 PROMPT = os.environ.get(
     'OSANPO_PROMPT',
