@@ -61,6 +61,14 @@ Set-ExecutionPolicy -Scope Process Bypass
 - **自動ログオン**: `netplwiz` で「ユーザーがこのコンピューターを使うには…」のチェックを外す（ログオンしないとタスクが走らない）
 - **スリープ禁止**: 設定 → システム → 電源 → 画面とスリープ を「なし」に。または `powercfg /change standby-timeout-ac 0`
 
+### 夜の内省を自動にする（任意）
+
+```powershell
+$a = New-ScheduledTaskAction -Execute 'python' -Argument 'osanpo\reflect.py' -WorkingDirectory (Get-Location).Path
+$t = New-ScheduledTaskTrigger -Daily -At 23:00
+Register-ScheduledTask -TaskName 'OsanpoReflect' -Action $a -Trigger $t -Force
+```
+
 ## 5. Cloudflare Tunnel を張る
 
 Cloudflareダッシュボード → Zero Trust → Networks → Tunnels →「トンネルを作成」→ Windows を選ぶと
