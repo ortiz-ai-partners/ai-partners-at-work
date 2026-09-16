@@ -8,6 +8,9 @@ StackChan（や、テスト用のスマホ/curl）が POST /upload でJPEGを送
      （personas/<名前>.md の人格で、diary.jsonl の直近の会話を踏まえて答える）
   4. diary.jsonl（機械用）と diary.log（人間用）に追記
 
+散歩1回＝1つのClaude会話。写真ごとに --resume で同じ会話を続けるので、その散歩で見た写真と会話を全部覚えている。
+90分（OSANPO_WALK_GAP_MIN）空くか POST /newwalk で散歩が終わり、自動で内省（reflect.py）が走る。
+
 ゆうころは POST /reply（本文=返事）で会話を返せる。index.html に入力欄がある。
 StackChanは GET /latest.txt でコメントを取りに来て、喋ればいい。
 
@@ -34,6 +37,7 @@ import subprocess
 import sys
 import urllib.request
 import threading
+import time
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -49,6 +53,8 @@ LATEST_TXT = os.path.join(HERE, 'latest.txt')
 DIARY = os.path.join(HERE, 'diary.log')
 DIARY_JSONL = os.path.join(HERE, 'diary.jsonl')
 MEMORY = os.path.join(HERE, 'memory.md')       # 長期記憶（reflect.py が書く）
+WALK = os.path.join(HERE, '.walk.json')        # いまの散歩の会話ID {"session_id", "last_ts"}
+WALK_GAP_MIN = int(os.environ.get('OSANPO_WALK_GAP_MIN', '90'))  # これ以上空いたら新しい散歩
 PERSONA_NAME = os.environ.get('OSANPO_PERSONA', 'osanpo')
 PERSONA = os.path.join(HERE, 'personas', PERSONA_NAME + '.md')
 BRAIN = os.environ.get('OSANPO_BRAIN', 'claude')          # claude | openai
@@ -62,7 +68,7 @@ PROMPT = os.environ.get(
     'OSANPO_PROMPT',
     '{path} を見て、いま何が見えるかを言って。',
 )
-CONTEXT_TURNS = int(os.environ.get('OSANPO_CONTEXT_TURNS', '8'))  # 直近何発言を渡すか
+CONTEXT_TURNS = int(os.environ.get('OSANPO_CONTEXT_TURNS', '8'))  # 新しい散歩の最初に、前回までの直近何発言を渡すか
 MAX_BYTES = 4 * 1024 * 1024
 
 lock = threading.Lock()
@@ -113,25 +119,63 @@ def who_is_there(path):
         return [], 0
 
 
-def load_memory():
+def load_walk():
     try:
-        with open(MEMORY, encoding='utf-8') as f:
-            return f.read().strip()
+        with open(WALK, encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def save_walk(session_id):
+    with open(WALK, 'w', encoding='utf-8') as f:
+        json.dump({'session_id': session_id, 'last_ts': time.time()}, f)
+
+
+def current_walk_session():
+    """続きの散歩なら会話IDを返す。空白が長ければ None（新しい散歩）。"""
+    w = load_walk()
+    if not w.get('session_id'):
+        return None
+    if time.time() - w.get('last_ts', 0) > WALK_GAP_MIN * 60:
+        return None
+    return w['session_id']
+
+
+def end_walk():
+    """散歩を終える。会話IDを捨て、日記があれば内省を走らせる。"""
+    had = bool(load_walk().get('session_id'))
+    try:
+        os.remove(WALK)
     except FileNotFoundError:
-        return ''
+        pass
+    if had:
+        threading.Thread(target=run_reflect, daemon=True).start()
 
 
-def build_prompt(path, people):
-    prompt = PROMPT.format(path=path)
-    if people:
-        prompt = f'この写真に映っているのは: {", ".join(people)}（家のカメラで照合済み）\n{prompt}'
-    ctx = recent_dialogue(CONTEXT_TURNS)
-    if ctx:
-        prompt = f'これまでの散歩の会話:\n{ctx}\n\n{prompt}'
-    mem = load_memory()
-    if mem:
-        prompt = f'あなたが覚えていること:\n{mem}\n\n{prompt}'
-    return prompt
+def run_reflect():
+    r = subprocess.run([sys.executable, os.path.join(HERE, 'reflect.py')], capture_output=True, text=True)
+    print((r.stdout or r.stderr).strip(), flush=True)
+
+
+def unseen_replies():
+    """前回その子が喋ってから後の、ゆうころの返事だけ。"""
+    try:
+        with open(DIARY_JSONL, encoding='utf-8') as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        return []
+    out = []
+    for line in reversed(lines):
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if e.get('role') == 'yukoro':
+            out.append(e.get('text', ''))
+        else:
+            break
+    return list(reversed(out))
 
 
 def load_persona():
@@ -142,19 +186,70 @@ def load_persona():
         return ''
 
 
-def ask_claude(path, people=None):
-    """claude -p に画像を見せて、人格で一言もらう。失敗しても落とさない。"""
-    cmd = ['claude', '-p', build_prompt(path, people), '--allowedTools', 'Read']
-    persona = load_persona()
-    if persona:
-        cmd += ['--append-system-prompt', persona]
+def load_memory():
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
-        return (r.stdout.strip() or r.stderr.strip() or '(無言)').replace('\n', ' ')
+        with open(MEMORY, encoding='utf-8') as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return ''
+
+
+def build_prompt(path, people, resumed):
+    prompt = PROMPT.format(path=path)
+    if people:
+        prompt = f'この写真に映っているのは: {", ".join(people)}（家のカメラで照合済み）\n{prompt}'
+    if resumed:
+        rep = unseen_replies()
+        if rep:
+            prompt = 'ゆうころ: ' + '\nゆうころ: '.join(rep) + '\n\n' + prompt
+    else:
+        ctx = recent_dialogue(CONTEXT_TURNS)
+        if ctx:
+            prompt = f'新しい散歩が始まった。前回までの会話の終わり:\n{ctx}\n\n{prompt}'
+    return prompt
+
+
+def system_prompt():
+    """人格＋長期記憶。会話の中ではなく毎回「性格」として渡す（会話が太らない）。"""
+    parts = [load_persona()]
+    mem = load_memory()
+    if mem:
+        parts.append('あなたが覚えていること:\n' + mem)
+    return '\n\n'.join(p for p in parts if p)
+
+
+def _run_claude(prompt, session_id):
+    cmd = ['claude', '-p', prompt, '--allowedTools', 'Read', '--output-format', 'json',
+           '--append-system-prompt', system_prompt()]
+    if session_id:
+        cmd += ['--resume', session_id]
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    j = json.loads(r.stdout)
+    if j.get('is_error'):
+        raise RuntimeError(j.get('result') or 'claude error')
+    return (j.get('result') or '(無言)').strip().replace('\n', ' '), j.get('session_id')
+
+
+def ask_claude(path, people=None):
+    """散歩1回＝1つの会話。続きなら --resume、途切れていれば新しく始める。"""
+    sid = current_walk_session()
+    try:
+        try:
+            text, new_sid = _run_claude(build_prompt(path, people, resumed=bool(sid)), sid)
+        except (RuntimeError, ValueError):
+            if not sid:
+                raise
+            print('会話の再開に失敗。新しい散歩として始める', flush=True)
+            text, new_sid = _run_claude(build_prompt(path, people, resumed=False), None)
+        if new_sid:
+            save_walk(new_sid)
+        return text
     except FileNotFoundError:
         return '(claude コマンドが見つからない)'
     except subprocess.TimeoutExpired:
         return '(claude タイムアウト)'
+    except Exception as e:  # noqa: BLE001
+        return f'(claude 失敗: {e})'
 
 
 def ask_openai(path, people=None):
@@ -163,7 +258,7 @@ def ask_openai(path, people=None):
         return '(OPENAI_API_KEY が未設定)'
     with open(path, 'rb') as f:
         b64 = base64.b64encode(f.read()).decode('ascii')
-    prompt = build_prompt('この画像', people)
+    prompt = build_prompt('この画像', people, resumed=False)
     body = {
         'model': OPENAI_MODEL,
         'max_tokens': 200,
@@ -216,10 +311,16 @@ class Handler(BaseHTTPRequestHandler):
         if route == '/reply':
             return self.reply()
         if route == '/reflect':
-            threading.Thread(target=self.reflect, daemon=True).start()
+            threading.Thread(target=run_reflect, daemon=True).start()
             self.send_response(202)
             self.end_headers()
             return self.wfile.write(b'reflecting\n')
+        if route == '/newwalk':
+            end_walk()
+            self.send_response(200)
+            self.end_headers()
+            print(f'[{now()}] 散歩を締めた（次の写真から新しい散歩）', flush=True)
+            return self.wfile.write(b'new walk\n')
         if route != '/upload':
             return self.send_error(404)
         n = int(self.headers.get('Content-Length') or 0)
@@ -246,17 +347,14 @@ class Handler(BaseHTTPRequestHandler):
         people, unknown = who_is_there(shot)
         if people or unknown:
             print(f'[{ts}] 映っている人: {people or "-"} / 知らない顔: {unknown}', flush=True)
-        text = ask_brain(LATEST_JPG, people)
+        if current_walk_session() is None and load_walk().get('session_id'):
+            end_walk()  # 間が空いた → 前の散歩を締めて内省
+        text = ask_brain(shot, people)
         with lock:
             with open(LATEST_TXT, 'w', encoding='utf-8') as f:
                 f.write(text + '\n')
             diary_append(PERSONA_NAME, text, os.path.relpath(shot, HERE), people)
         print(f'[{ts}] {DISPLAY.get(PERSONA_NAME, PERSONA_NAME)}: {text}', flush=True)
-
-    def reflect(self):
-        """内省を別プロセスで走らせる（reflect.py）。"""
-        r = subprocess.run([sys.executable, os.path.join(HERE, 'reflect.py')], capture_output=True, text=True)
-        print((r.stdout or r.stderr).strip(), flush=True)
 
     def reply(self):
         """ゆうころの返事を日記に残す。本文はUTF-8のプレーンテキスト。"""

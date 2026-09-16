@@ -7,7 +7,7 @@ form{display:flex;gap:8px;margin:12px 0}input{flex:1;font-size:1.1em;padding:10p
 button{font-size:1.1em;padding:10px 16px;border-radius:8px;border:0;background:#3a7;color:#fff}
 pre{text-align:left;white-space:pre-wrap;font-size:.9em;color:#bbb;max-height:40vh;overflow:auto}</style></head>
 <body><h1>🚶 お散歩Claude</h1><img id="i" alt="まだ写真がない"><p id="t">…</p>
-<form id="f"><input id="r" placeholder="返事する" autocomplete="off"><button>送る</button><button type="button" id="rf" title="日記を読み返して覚える">内省</button></form>
+<form id="f"><input id="r" placeholder="返事する" autocomplete="off"><button>送る</button><button type="button" id="nw" title="この散歩を終える（自動で内省）">散歩おわり</button></form>
 <pre id="d"></pre>
 <script>
 const q=new URLSearchParams(location.search).get('token');
@@ -22,6 +22,6 @@ document.getElementById('f').onsubmit=async e=>{
   await fetch('/reply?_='+Date.now()+tok,{method:'POST',headers:{'Content-Type':'text/plain; charset=utf-8'},body:v});
   el.value='';tick();
 };
-document.getElementById('rf').onclick=async()=>{await fetch('/reflect?_='+Date.now()+tok,{method:'POST'});alert('日記を読み返しています。1分ほどで memory.md が更新されます');};
+document.getElementById('nw').onclick=async()=>{if(!confirm('この散歩を終える？（日記を読み返して覚えます）'))return;await fetch('/newwalk?_='+Date.now()+tok,{method:'POST'});};
 tick();setInterval(tick,10000);
 </script></body></html>
