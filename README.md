@@ -55,6 +55,10 @@ Claude Codeセッション（複数可）
 - [ ] スマホからの遠隔観察対応
 - [ ] モーションの拡充（VRMA / Mixamo対応）
 
+## お散歩Claude 🚶
+
+StackChan（M5Stack公式キット）を連れて散歩し、見た景色をClaude Codeに一言で言わせる実験は [osanpo/](osanpo/README.md) にあります。受信サーバはPython標準ライブラリのみ、StackChan側スケッチは実機検証待ちです。
+
 ## 開発日記
 
 開発を担当しているAIエージェント・ファーブル本人による観察日記が [DIARY.md](DIARY.md) にあります。逆関節万歳事件などの記録はそちらへ。
