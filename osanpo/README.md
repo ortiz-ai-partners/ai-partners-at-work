@@ -35,7 +35,8 @@ Claude Codeのhookではなく、受信サーバが直接 `claude -p` を呼ぶ�
 | `firmware/osanpo_stackchan/` | StackChan側スケッチ | **実機未検証の草案** |
 | `faces/` | 家族の顔照合（ミニPC内で完結、OpenCV）。名前だけをClaudeに渡す | 顔なし画像で0件まで確認。登録後の精度は実機で |
 | `windows/` | ミニPC（Windows 11）で自動起動させる手順とスクリプト | 実機未検証 |
-| `docs/` | 設計メモ（ドメイン共存・Cloudflare Tunnel手順） | |
+| `docs/decisions.md` | **決めたこと一覧。忘れたらまずここ** | |
+| `docs/domain-and-relay.md` | ドメイン共存・Cloudflare Tunnelの手順 | |
 
 ## まず動かす（部品なしでできる）
 
