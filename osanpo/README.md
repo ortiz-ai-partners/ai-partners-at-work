@@ -58,6 +58,7 @@ diary.jsonl（生ログ、全部）──内省(reflect.py)──▶ memory.md�
 | `personas/osanpo.md` | 写真を見て喋る人格: **おさんぽの子**（既定。名前は本人が後で決める） | 動作確認済み |
 | `personas/vert.md` | 同: ヴェルティ（参謀。散歩には出ない） | 動作確認済み |
 | `personas/ortiz.md` | 同: オルティス。**中身はゆうころが書く**（雛形のみ） | 未記入 |
+| `firmware/README.md` | 出荷時アプリの吸い出し・書き戻し・書き込みの手順 | |
 | `firmware/osanpo_stackchan/` | StackChan側スケッチ | **実機未検証の草案** |
 | `faces/` | 家族の顔照合（ミニPC内で完結、OpenCV）。名前だけをClaudeに渡す | 顔なし画像で0件まで確認。登録後の精度は実機で |
 | `windows/` | ミニPC（Windows 11）で自動起動させる手順とスクリプト | 実機未検証 |
@@ -127,7 +128,7 @@ python3 osanpo/faces/faces.py who photo.jpg   # 確認
 ## 手順（時系列）
 
 1. **フェーズ0 サーバ側（今日、部品なし）**: 上の「まず動かす」を通す。`latest.txt` に一言が入れば合格
-2. **フェーズ1 開封と初期ファーム確認**: 電源を入れて初期画面を記録。M5Burnerで戻せることを確認してから書き換えに進む
+2. **フェーズ1 開封と初期ファーム確認**: 出荷時アプリの設定画面を記録（カスタムAPIの有無）。**esptoolでフラッシュ16MBを丸ごと吸い出して保管**してから書き換えに進む（`firmware/README.md`）
 3. **フェーズ1 書き込み環境**: Arduino IDEにM5Stackボード定義とM5CoreS3ライブラリを入れる。`SSID/PASS/SERVER` を書き換えて書き込む
 4. **フェーズ1 室内テスト**: 家のWi-FiでPCと同じネットワークに置き、`shots/` に写真が溜まり `latest.txt` が更新されるのを確認
 5. **フェーズ1 テザリングテスト**: スマホのテザリングにPCとStackChanを両方つなぎ、同じことが起きるか確認
