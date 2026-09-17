@@ -35,7 +35,7 @@ iPhoneのWi-Fi一覧に `Xiaozhi-XXXX` が出るので繋ぎ、Safariで `http:/
 - カスタムOTA URL: 空
 - WebSocketゲートウェイURL: `ws://ミニPCのIP:8765/`（例 `ws://192.168.4.32:8765/`）
 - フォールバックゲートウェイURL: 空（外出先用。後で Cloudflare Tunnel の `wss://...`）
-- ゲートウェイトークン: ミニPC側の `STACKCHAN_TOKEN` と同じ文字列
+- ゲートウェイトークン: ミニPC側の `STACKCHAN_TOKEN` と同じ文字列。**iPhoneが「強力なパスワード」を勝手に入れてくるので、「自分のパスワードを選択」で手打ちする**（勝手に入ると誰も知らない合言葉になる。その時は merged-binary.bin を書き直して設定を白紙に戻す）
 - Wi-Fi最大送信電力 / BSSID記憶 / スリープモード: 既定のまま
 - 「保存」
 
