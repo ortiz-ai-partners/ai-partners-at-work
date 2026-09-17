@@ -19,4 +19,4 @@ if "%OSANPO_TOKEN%"=="" (
 )
 
 echo [osanpo] start %date% %time% >> "%~dp0osanpo.log"
-python server.py 2>&1 | powershell -NoProfile -Command "$input | Tee-Object -FilePath '%~dp0osanpo.log' -Append"
+python -u server.py 2>&1 | powershell -NoProfile -Command "$input | Tee-Object -FilePath '%~dp0osanpo.log' -Append"
