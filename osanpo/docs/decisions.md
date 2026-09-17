@@ -54,6 +54,7 @@
 | 本命 | **stackchan-mcp**（第三者のMIT製ファーム＋Pythonゲートウェイ）。Claude Code から take_photo / say / listen / move_head / set_avatar を道具として呼ぶ |
 | うちの自作スケッチ | **不採用**（stackchan-mcp が同じものを持っている） |
 | 書き込む前に | ① iPhoneアプリで Unbind & Reset ② esptool でフラッシュ16MB吸い出し（`firmware/README.md`）③ 公式の戻し方は M5Burner の StackChan |
+| stackchan-mcp ファームの更新確認先 | 既定は小智のクラウド。**カスタムOTA URL を `http://ミニPC:5072/xiaozhi/ota/` にして家の中で完結させる**（server.py が返答）。2026-09-17 に一度、空のまま起動して本体の機種名・MAC・端末IDが xiaozhi.me に渡った。声・写真は渡っていない |
 | データの行き先 | 写真とその子の言葉 → Claude（Anthropic、米国）のみ。声の文字起こし(faster-whisper)・合成(VOICEVOX)・顔照合・日記・記憶は **ミニPCの中**。ElevenLabs で声クローンを使う時だけ文字が米国へ |
 | 確認すること | Claude 側で写真が学習に使われるかの設定項目（契約と設定に従う。未確認） |
 

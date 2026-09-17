@@ -32,7 +32,9 @@ esptool --chip esp32s3 --port COM5 -b 460800 write_flash 0x0 merged-binary.bin
 iPhoneのWi-Fi一覧に `Xiaozhi-XXXX` が出るので繋ぎ、Safariで `http://192.168.4.1`。右上のプルダウンで **日本語** に切替できる。
 
 **先に「詳細設定」タブ**（Wi-Fiを繋ぐと再起動して画面から抜けるため）:
-- カスタムOTA URL: 空
+- カスタムOTA URL: **`http://ミニPCのIP:5072/xiaozhi/ota/`**（例 `http://192.168.4.32:5072/xiaozhi/ota/`）
+  - **空のままにしない。** 空だと土台ファーム（xiaozhi-esp32）の既定で、起動のたびに小智のクラウド（xiaozhi.me / api.tenclass.net）へ更新確認と有効化の問い合わせをし、画面が「激活设备 xiaozhi.me 123456」で止まる。その問い合わせで本体の機種名・MACアドレス・端末IDが向こうに渡る（2026-09-17 に一度やってしまった）
+  - うちの server.py が `/xiaozhi/ota/` で「更新なし・有効化なし」と答えるので、本体は家の外に話しかけなくなる。server.py を先に起動しておくこと
 - WebSocketゲートウェイURL: `ws://ミニPCのIP:8765/`（例 `ws://192.168.4.32:8765/`）
 - フォールバックゲートウェイURL: 空（外出先用。後で Cloudflare Tunnel の `wss://...`）
 - ゲートウェイトークン: ミニPC側の `STACKCHAN_TOKEN` と同じ文字列。**iPhoneが「強力なパスワード」を勝手に入れてくるので、「自分のパスワードを選択」で手打ちする**（勝手に入ると誰も知らない合言葉になる。その時は merged-binary.bin を書き直して設定を白紙に戻す）
@@ -41,6 +43,8 @@ iPhoneのWi-Fi一覧に `Xiaozhi-XXXX` が出るので繋ぎ、Safariで `http:/
 
 **次に「Wi-Fi設定」タブ**: 一覧から家の2.4GHz Wi-Fiを選び、パスワードを入れて「接続」。
 「Load failed」の赤字は現在値の読み込み失敗の表示で、保存が通っていれば無視してよい。
+
+**本体の画面が「激活设备 xiaozhi.me ○○○○○○」で止まったら**: カスタムOTA URL が空のまま小智へ問い合わせている。USBを抜いて止め、merged-binary.bin を書き直して設定を白紙に戻し、上の順で入れ直す。
 
 ### 3. ミニPC側（ゲートウェイ常駐）
 

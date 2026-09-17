@@ -402,8 +402,29 @@ class Handler(BaseHTTPRequestHandler):
                     given = kv[6:]
         return given == TOKEN
 
+    def ota_reply(self):
+        """StackChan(xiaozhi-esp32系ファーム)の更新確認に「更新なし・有効化なし」と答える。
+        本体の「カスタムOTA URL」を http://ミニPC:5072/xiaozhi/ota/ に向けると、
+        本体は小智のクラウド(xiaozhi.me)に一切問い合わせなくなる。合言葉は不要（本体は付けられない）。"""
+        n = int(self.headers.get('Content-Length') or 0)
+        if n:
+            self.rfile.read(min(n, 65536))
+        dev = self.headers.get('Device-Id', '?')
+        print(f'[{now()}] 本体の更新確認 (Device-Id {dev}) → 更新なし・有効化なし と返答', flush=True)
+        body = json.dumps({
+            'firmware': {'version': '0.0.0', 'url': ''},
+            'server_time': {'timestamp': int(time.time() * 1000), 'timezone_offset': 540},
+        }).encode('utf-8')
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_POST(self):
         route = self.path.split('?')[0]
+        if route.rstrip('/') == '/xiaozhi/ota':
+            return self.ota_reply()
         if not self.authorized():
             return self.send_error(403, 'bad token')
         if route == '/reply':
@@ -481,9 +502,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(b'ok\n')
 
     def do_GET(self):
+        route = self.path.split('?')[0]
+        if route.rstrip('/') == '/xiaozhi/ota':
+            return self.ota_reply()
         if not self.authorized():
             return self.send_error(403, 'bad token')
-        route = self.path.split('?')[0]
         if route == '/latest.txt':
             return self.send_file(LATEST_TXT, 'text/plain; charset=utf-8')
         if route == '/latest.jpg':

@@ -52,7 +52,7 @@ diary.jsonl（生ログ、全部）──内省(reflect.py)──▶ memory.md�
 
 | ファイル | 役割 | 状態 |
 |---|---|---|
-| `server.py` | 受信サーバ。Python標準ライブラリのみ。`mcp.json` があれば `say` で喋る | 動作確認済み（curl / 常駐ゲートウェイ相手に） |
+| `server.py` | 受信サーバ。Python標準ライブラリのみ。`mcp.json` があれば `say` で喋る。`/xiaozhi/ota/` で本体の更新確認に「更新なし」と答え、小智のクラウドへ行かせない | 動作確認済み（curl / 常駐ゲートウェイ相手に） |
 | `walk.py` | 散歩ループ。常駐ゲートウェイに `take_photo` を頼み server.py へ渡す | 本体未接続の経路まで確認済み |
 | `mcp.json.example` | Claude Code に常駐ゲートウェイを教える設定。`mcp.json` にコピーして合言葉を入れる | |
 | `index.html` | ブラウザで最新の写真とコメントを見るページ（`http://PC:5072/`） | 動作確認済み |
