@@ -26,12 +26,21 @@ Releases から `merged-binary.bin` を取り、
 esptool --chip esp32s3 --port COM5 -b 460800 write_flash 0x0 merged-binary.bin
 ```
 
-### 2. 初回設定（本体側）
+### 2. 初回設定（本体側）　※2026-09-17 実機で確認
 
-起動するとWi-Fi設定モードになる。スマホで本体のアクセスポイントに繋ぎ `http://192.168.4.1` → **Advanced** タブ:
-- WebSocket Gateway URL: `ws://ミニPCのIP:8765/`
-- Gateway Token: ミニPC側の `STACKCHAN_TOKEN` と同じ
-- Fallback Gateway URL: 外出先用（後で。Cloudflare Tunnel 経由の `wss://...`）
+書き込み後、本体は中国語で案内音声を出してWi-Fi設定モードになる（案内音声は本体に焼き込まれたもので、ネットには出ない）。
+iPhoneのWi-Fi一覧に `Xiaozhi-XXXX` が出るので繋ぎ、Safariで `http://192.168.4.1`。右上のプルダウンで **日本語** に切替できる。
+
+**先に「詳細設定」タブ**（Wi-Fiを繋ぐと再起動して画面から抜けるため）:
+- カスタムOTA URL: 空
+- WebSocketゲートウェイURL: `ws://ミニPCのIP:8765/`（例 `ws://192.168.4.32:8765/`）
+- フォールバックゲートウェイURL: 空（外出先用。後で Cloudflare Tunnel の `wss://...`）
+- ゲートウェイトークン: ミニPC側の `STACKCHAN_TOKEN` と同じ文字列
+- Wi-Fi最大送信電力 / BSSID記憶 / スリープモード: 既定のまま
+- 「保存」
+
+**次に「Wi-Fi設定」タブ**: 一覧から家の2.4GHz Wi-Fiを選び、パスワードを入れて「接続」。
+「Load failed」の赤字は現在値の読み込み失敗の表示で、保存が通っていれば無視してよい。
 
 ### 3. ミニPC側（ゲートウェイ常駐）
 

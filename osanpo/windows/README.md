@@ -84,13 +84,14 @@ STACKCHAN_TOKEN=ゲートウェイの合言葉
 VISION_HOST=ミニPCのLAN IP
 ```
 
-常駐タスク（ログオン時）:
+手で動かす（3つのターミナル）:
 ```powershell
-$a = New-ScheduledTaskAction -Execute 'stackchan-mcp' -Argument 'serve --transport streamable-http' -WorkingDirectory (Get-Location).Path
-$t = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
-Register-ScheduledTask -TaskName 'StackChanGateway' -Action $a -Trigger $t -Force
+osanpo\windows\start-gateway.bat        # ゲートウェイ常駐（本体がここに繋ぎに来る）
+osanpo\windows\start-osanpo.bat         # 受信サーバ（その子）
+osanpo\windows\start-walk.bat --once    # 写真を1枚取って渡す。通ったら --once なしで5分ループ
 ```
-散歩ループも同様に `python osanpo\walk.py` を登録する（散歩の時だけ手で起動でもよい）。
+
+常駐タスク（ログオン時）にするなら `start-gateway.bat` と `start-osanpo.bat` をそれぞれ登録する。
 声を出すなら VOICEVOX の Windows 版を入れて起動しておく。
 
 ## 5. Cloudflare Tunnel を張る
