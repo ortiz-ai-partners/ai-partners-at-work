@@ -276,7 +276,10 @@ def _run_claude(prompt, session_id):
     r = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', timeout=180)
     if not r.stdout.strip():
         raise RuntimeError((r.stderr or 'claude が何も返さない').strip()[:300])
-    j = json.loads(r.stdout)
+    try:
+        j = json.loads(r.stdout)
+    except ValueError:
+        raise RuntimeError('claude の返事がJSONでない: ' + r.stdout.strip()[:200].replace('\n', ' '))
     if j.get('is_error'):
         raise RuntimeError(j.get('result') or 'claude error')
     denied = j.get('permission_denials') or []
