@@ -48,7 +48,9 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, 'faces'))
+from claude_cli import claude_command  # noqa: E402
 try:
     import faces  # 家族の顔照合（ミニPC内で完結）。opencvが無ければ黙って無効
 except Exception:  # noqa: BLE001
@@ -255,15 +257,25 @@ def system_prompt():
     return '\n\n'.join(p for p in parts if p)
 
 
+SYSPROMPT_FILE = os.path.join(HERE, '.system_prompt.txt')
+
+
 def _run_claude(prompt, session_id):
+    base = claude_command()
+    if not base:
+        raise FileNotFoundError('claude')
+    with open(SYSPROMPT_FILE, 'w', encoding='utf-8') as f:
+        f.write(system_prompt())
     tools = ['Read'] + (STACKCHAN_TOOLS if stackchan_mode() else [])
-    cmd = ['claude', '-p', prompt, '--allowedTools', *tools, '--output-format', 'json',
-           '--append-system-prompt', system_prompt()]
-    if stackchan_mode():
-        cmd += ['--mcp-config', MCP_JSON, '--strict-mcp-config']
+    cmd = base + ['-p', prompt, '--allowedTools', *tools, '--output-format', 'json',
+                  '--append-system-prompt-file', SYSPROMPT_FILE]
     if session_id:
         cmd += ['--resume', session_id]
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    if stackchan_mode():
+        cmd += ['--mcp-config', MCP_JSON, '--strict-mcp-config']
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', timeout=180)
+    if not r.stdout.strip():
+        raise RuntimeError((r.stderr or 'claude が何も返さない').strip()[:300])
     j = json.loads(r.stdout)
     if j.get('is_error'):
         raise RuntimeError(j.get('result') or 'claude error')
