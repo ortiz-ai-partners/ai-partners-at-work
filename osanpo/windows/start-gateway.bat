@@ -16,7 +16,7 @@ if "%STACKCHAN_TOKEN%"=="" (
   exit /b 1
 )
 if "%VISION_HOST%"=="" (
-  echo [gateway] VISION_HOST is not set in osanpo\windows\osanpo.env  (this PC's LAN IP, e.g. 192.168.4.32)
+  echo [gateway] VISION_HOST is not set in osanpo\windows\osanpo.env - put this PC's LAN IP, e.g. 192.168.4.32
   pause
   exit /b 1
 )
