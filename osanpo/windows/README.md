@@ -111,6 +111,9 @@ Public Hostname:
 
 ## つまずきそうな所
 
+- 起動は必ず `cd C:\osanpo` してから `osanpo\windows\start-osanpo.bat`。Ctrl+C で止めたあとプロンプトが `C:\osanpo\osanpo>` になっていたら `cd C:\osanpo` で戻る
+- Windows の `claude` は `%APPDATA%\npm\claude.cmd` という起動ファイルで、本体は `%APPDATA%\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe`（実機で確認）。server.py は本体を直接呼ぶ
+
 - `python` が「Microsoft Storeを開く」だけで終わる → 設定 → アプリ → アプリ実行エイリアス で python の項目をオフ
 - `claude -p` がタスクから動かない → タスクは「ログオンしたユーザー」で動く前提。自動ログオンを忘れていないか
 - 起動直後にWi-Fiがまだ繋がっておらず失敗 → タスクは1分おきに3回まで再試行する設定にしてある

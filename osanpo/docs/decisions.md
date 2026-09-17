@@ -68,6 +68,13 @@
 | 移行する時間帯 | メールを使わない夕方以降、まとまった時間が取れる日 |
 | 将来 | `office.ortiz-ai.partners` → 3Dオフィス(3939)。StackChan の ws 8765 / 写真 8766 も同じトンネルで外へ（本体の Fallback Gateway URL に入れる） |
 
+## 2026-09-17 ミニPCで通ったこと
+
+- Python 3.12 / Git / Node 24 / Claude Code 2.1.273 を winget と npm で導入（`--source winget`、`--allow-scripts` が必要だった）
+- `C:\osanpo` にリポジトリを置き、`start-osanpo.bat` でサーバ起動、閲覧ページ表示
+- 手で渡した写真（ボールプール）に、おさんぽの子が最初の一言を返した。**ミニPCの中で「写真→一言→日記」が一周**
+- 直した詰まり: .bat の日本語コメント、PowerShell の実行ポリシー、npm の allow-scripts、claude.cmd 経由の呼び出し、日本語の文字化け
+
 ## まだ決めていない・確認待ち
 
 - StackChanの出荷時ファームと初期画面（開封後）
