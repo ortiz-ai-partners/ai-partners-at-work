@@ -37,9 +37,11 @@ git checkout claude/osanpo-claude-setup-z11ruf
 
 ```powershell
 copy osanpo\windows\osanpo.env.example osanpo\windows\osanpo.env
-notepad osanpo\windows\osanpo.env      # OSANPO_TOKEN を長いランダム文字列に
+notepad osanpo\windows\osanpo.env      # OSANPO_TOKEN を長いランダム文字列に（英数字と - _ だけ）
 osanpo\windows\start-osanpo.bat
 ```
+
+`.bat` と `.env` は英数字だけで書く。cmd.exe は古い文字コードで読むので、日本語が入ると化けて壊れる。
 
 別のPCやスマホ（同じWi-Fi）から `http://ミニPCのIP:5072/?token=合言葉` が開けば合格。
 開けない時はWindowsファイアウォールに穴を開ける（家の中でのテスト用。トンネル経由だけなら不要）:
