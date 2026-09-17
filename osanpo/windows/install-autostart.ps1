@@ -1,15 +1,16 @@
-# お散歩Claude: ログオン時に start-osanpo.bat を自動起動するタスクを登録する（Windows 11）
-# 使い方: PowerShell を開いて
-#   Set-ExecutionPolicy -Scope Process Bypass
+# osanpo claude: register a logon task that runs start-osanpo.bat (Windows 11)
+# Usage (PowerShell):
+#   Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 #   .\install-autostart.ps1
-# 解除:   Unregister-ScheduledTask -TaskName "OsanpoClaude" -Confirm:$false
+# Remove: Unregister-ScheduledTask -TaskName "OsanpoClaude" -Confirm:$false
+# Keep this file ASCII-only: Windows PowerShell 5.1 reads BOM-less files in the legacy code page.
 
 $ErrorActionPreference = 'Stop'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $bat  = Join-Path $here 'start-osanpo.bat'
 
 if (-not (Test-Path (Join-Path $here 'osanpo.env'))) {
-  Write-Host "osanpo.env がありません。osanpo.env.example をコピーして合言葉を書いてください。" -ForegroundColor Yellow
+  Write-Host "osanpo.env not found. Copy osanpo.env.example to osanpo.env and set OSANPO_TOKEN." -ForegroundColor Yellow
   exit 1
 }
 
@@ -18,6 +19,6 @@ $trigger  = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -StartWhenAvailable
 Register-ScheduledTask -TaskName 'OsanpoClaude' -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
 
-Write-Host "登録しました。次回ログオンから自動起動します。今すぐ試すなら:" -ForegroundColor Green
+Write-Host "Registered. Starts automatically at next logon. To try now:" -ForegroundColor Green
 Write-Host "  Start-ScheduledTask -TaskName OsanpoClaude"
-Write-Host "ログ: $here\osanpo.log"
+Write-Host "Log: $here\osanpo.log"
