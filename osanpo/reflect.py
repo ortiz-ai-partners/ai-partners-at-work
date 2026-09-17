@@ -16,6 +16,8 @@ import sys
 from datetime import datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from claude_cli import claude_command  # noqa: E402
 DIARY_JSONL = os.path.join(HERE, 'diary.jsonl')
 MEMORY = os.path.join(HERE, 'memory.md')
 STATE = os.path.join(HERE, '.reflect_state')   # 最後に読んだ行数
@@ -94,11 +96,14 @@ def reflect(read_all=False):
 - 場所の特定や、登録されていない人物の名前・特徴は書かない
 
 出力は、書き直した「覚えていること」の全文だけ。前置きも説明も不要。見出し構成は保つ。"""
-    cmd = ['claude', '-p', prompt]
-    persona = load(PERSONA)
-    if persona:
-        cmd += ['--append-system-prompt', persona]
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    base = claude_command()
+    if not base:
+        print('claude コマンドが見つからない')
+        return 1
+    cmd = base + ['-p', prompt]
+    if os.path.exists(PERSONA):
+        cmd += ['--append-system-prompt-file', PERSONA]
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', timeout=300)
     text = r.stdout.strip()
     if not text.startswith('#'):
         print('内省の出力が想定外。memory.md は変更しない:\n' + (text or r.stderr)[:500])
