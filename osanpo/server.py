@@ -476,7 +476,25 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
 
+class _Tee:
+    """画面とログファイルの両方に書く（Windowsで外部のパイプを挟むと日本語が化けるため、自前で）。"""
+
+    def __init__(self, path):
+        self.console = sys.stdout
+        self.f = open(path, 'a', encoding='utf-8')
+
+    def write(self, data):
+        self.console.write(data)
+        self.f.write(data)
+
+    def flush(self):
+        self.console.flush()
+        self.f.flush()
+
+
 if __name__ == '__main__':
+    if os.environ.get('OSANPO_LOG'):
+        sys.stdout = sys.stderr = _Tee(os.environ['OSANPO_LOG'])
     face_state = 'ON' if (faces and faces.available() and os.path.exists(faces.DB)) else 'OFF'
     brain = 'OFF' if NO_CLAUDE else f'{BRAIN}' + (f':{OPENAI_MODEL}' if BRAIN == 'openai' else '')
     print(f'osanpo server on http://0.0.0.0:{PORT}  (persona: {DISPLAY.get(PERSONA_NAME, PERSONA_NAME)}, brain: {brain}, token: {"SET" if TOKEN else "NONE - 家の中限定"}, faces: {face_state}, stackchan: {"ON (say で喋る)" if stackchan_mode() else "OFF"})', flush=True)
