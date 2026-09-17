@@ -467,7 +467,8 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == '__main__':
     face_state = 'ON' if (faces and faces.available() and os.path.exists(faces.DB)) else 'OFF'
     brain = 'OFF' if NO_CLAUDE else f'{BRAIN}' + (f':{OPENAI_MODEL}' if BRAIN == 'openai' else '')
-    print(f'osanpo server on http://0.0.0.0:{PORT}  (persona: {DISPLAY.get(PERSONA_NAME, PERSONA_NAME)}, brain: {brain}, token: {"SET" if TOKEN else "NONE - 家の中限定"}, faces: {face_state}, stackchan: {"ON (say で喋る)" if stackchan_mode() else "OFF"})')
+    print(f'osanpo server on http://0.0.0.0:{PORT}  (persona: {DISPLAY.get(PERSONA_NAME, PERSONA_NAME)}, brain: {brain}, token: {"SET" if TOKEN else "NONE - 家の中限定"}, faces: {face_state}, stackchan: {"ON (say で喋る)" if stackchan_mode() else "OFF"})', flush=True)
     if not os.path.exists(PERSONA):
         print(f'注意: 人格ファイルがない {PERSONA}', flush=True)
+    print(f'ブラウザで http://localhost:{PORT}/?token=合言葉 を開くと閲覧ページ。Ctrl+C で停止', flush=True)
     ThreadingHTTPServer(('0.0.0.0', PORT), Handler).serve_forever()
