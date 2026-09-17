@@ -352,6 +352,35 @@ def ask_openai(path, people=None):
         return f'(openai 失敗: {e})'
 
 
+def answer_reply(text):
+    """写真なしで、ゆうころの返事にそのまま応える（同じ散歩の会話の続き）。"""
+    if NO_CLAUDE or BRAIN != 'claude':
+        return
+    sid = current_walk_session()
+    prompt = f'ゆうころ: {text}\n（いまは写真はない。この言葉に、散歩の同行者として一言で応える）'
+    if not sid:
+        ctx = recent_dialogue(CONTEXT_TURNS)
+        if ctx:
+            prompt = f'前回までの会話の終わり:\n{ctx}\n\n{prompt}'
+    try:
+        try:
+            reply, new_sid = _run_claude(prompt, sid)
+        except (RuntimeError, ValueError):
+            if not sid:
+                raise
+            reply, new_sid = _run_claude(prompt, None)
+        if new_sid:
+            save_walk(new_sid)
+    except Exception as e:  # noqa: BLE001
+        print(f'返事に応えられなかった: {e}', flush=True)
+        return
+    with lock:
+        with open(LATEST_TXT, 'w', encoding='utf-8') as f:
+            f.write(reply + '\n')
+        diary_append(PERSONA_NAME, reply)
+    print(f'[{now()}] {DISPLAY.get(PERSONA_NAME, PERSONA_NAME)}: {reply}', flush=True)
+
+
 def ask_brain(path, people=None, asks=None):
     if NO_CLAUDE:
         return f'(頭脳省略: OSANPO_NO_CLAUDE=1 / persona={PERSONA_NAME})'
@@ -445,6 +474,8 @@ class Handler(BaseHTTPRequestHandler):
             with lock:
                 diary_append('system', note)
             print(f'[{now()}] {note}', flush=True)
+        else:
+            threading.Thread(target=answer_reply, args=(text,), daemon=True).start()
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b'ok\n')
