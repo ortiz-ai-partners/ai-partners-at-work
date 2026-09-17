@@ -62,6 +62,8 @@ def new_entries(read_all):
             e = json.loads(line)
         except ValueError:
             continue
+        if str(e.get('text', '')).startswith(('(claude', '(頭脳省略', '(openai', '(無言)')):
+            continue  # 失敗の跡は教材にしない
         who = DISPLAY.get(e.get('role'), e.get('role'))
         people = f"（映っていた人: {', '.join(e['people'])}）" if e.get('people') else ''
         out.append(f"{e.get('ts', '')} {who}: {e.get('text', '')}{people}")

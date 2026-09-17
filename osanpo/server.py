@@ -100,6 +100,14 @@ def diary_append(role, text, photo=None, people=None):
         f.write(f"{entry['ts']}\t{name}\t{text}\n")
 
 
+ERROR_PREFIXES = ('(claude', '(頭脳省略', '(openai', '(無言)')
+
+
+def is_error_entry(e):
+    """失敗の跡（私のミスのログ）は、その子の記憶に混ぜない。"""
+    return str(e.get('text', '')).startswith(ERROR_PREFIXES)
+
+
 def recent_dialogue(n):
     """直近n発言を「名前: 発言」の形で返す。無ければ空文字。"""
     try:
@@ -112,6 +120,8 @@ def recent_dialogue(n):
         try:
             e = json.loads(line)
         except ValueError:
+            continue
+        if is_error_entry(e):
             continue
         name = DISPLAY.get(e.get('role'), e.get('role'))
         out.append(f"{name}: {e.get('text', '')}")
