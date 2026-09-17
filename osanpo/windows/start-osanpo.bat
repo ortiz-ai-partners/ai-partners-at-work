@@ -18,5 +18,8 @@ if "%OSANPO_TOKEN%"=="" (
   exit /b 1
 )
 
-echo [osanpo] start %date% %time% >> "%~dp0osanpo.log"
-python -u server.py 2>&1 | powershell -NoProfile -Command "$input | Tee-Object -FilePath '%~dp0osanpo.log' -Append"
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
+set OSANPO_LOG=%~dp0osanpo.log
+echo [osanpo] start %date% %time% >> "%OSANPO_LOG%"
+python -u server.py
